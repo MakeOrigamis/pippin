@@ -1,0 +1,15 @@
+{
+  "name": "pippins-groundhog-day",
+  "version": "1.0.0",
+  "description": "Pippin's Groundhog Day - a tiny unicorn stuck in a time loop",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.95.3"
+  }
+}

@@ -1,0 +1,2734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ピピンのグラウンドホッグデー - Pippin's Groundhog Day</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream: #F5F0E6;
+      --cream-dark: #EDE7D9;
+      --green: #3A7D32;
+      --green-light: #5AA152;
+      --green-dark: #2D5A27;
+      --pink: #E8A0BF;
+      --pink-light: #F2C4D6;
+      --pink-dark: #D4789E;
+      --gold: #F4D06F;
+      --lavender: #C5B8E8;
+      --white: #FFFFFF;
+      --text: #3D3526;
+      --text-light: #6B6255;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    h1, h2, h3 {
+      font-family: 'Baloo 2', cursive;
+    }
+
+    /* ======================== 3D CANVAS ======================== */
+    #canvas3d {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
+
+    /* ======================== UI OVERLAY ======================== */
+    .ui-overlay {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .ui-overlay > * {
+      pointer-events: auto;
+    }
+
+    /* Top bar */
+    .top-bar {
+      top: 0; left: 0; right: 0;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(232, 213, 196, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(200, 180, 160, 0.4);
+    }
+
+    .top-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--green-dark);
+    }
+
+    .life-info {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .life-badge {
+      background: var(--pink);
+      color: white;
+      font-family: 'Baloo 2', cursive;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+    }
+
+    .timer {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--green-dark);
+    }
+
+    .happiness-mini {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.2rem;
+    }
+
+    .happiness-mini-bar {
+      width: 80px;
+      height: 10px;
+      background: var(--cream-dark);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .happiness-mini-fill {
+      height: 100%;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--gold), var(--pink));
+      transition: width 1s;
+    }
+
+    /* Speech bubble */
+    .speech-bubble-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -280px);
+      z-index: 15;
+      pointer-events: none;
+      display: flex;
+      justify-content: center;
+    }
+
+    .speech-bubble {
+      background: rgba(255, 255, 255, 0.85);
+      border: 2px solid rgba(200, 180, 160, 0.5);
+      border-radius: 20px;
+      padding: 1.2rem 1.8rem;
+      max-width: 420px;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text);
+      font-style: italic;
+      box-shadow: 0 8px 40px rgba(61, 53, 38, 0.08);
+      position: relative;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+
+    .speech-bubble.visible {
+      opacity: 1;
+    }
+
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 14px solid var(--white);
+    }
+
+    .speech-bubble::before {
+      content: '';
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-top: 16px solid var(--pink-light);
+    }
+
+    /* Animation buttons removed - using view toggle only */
+
+    /* Chat input */
+    .chat-container {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 20;
+      padding: 1.2rem 2rem 1.5rem;
+      background: rgba(232, 213, 196, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(200, 180, 160, 0.4);
+    }
+
+    .chat-inner {
+      max-width: 600px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--white);
+      border: 2px solid var(--cream-dark);
+      border-radius: 16px;
+      padding: 0.9rem 1.4rem;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .chat-input:focus {
+      border-color: var(--pink);
+    }
+
+    .chat-input::placeholder {
+      color: #B8B0A4;
+    }
+
+    .chat-send {
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 0.9rem 1.5rem;
+      font-family: 'Baloo 2', cursive;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .chat-send:hover {
+      background: var(--green-light);
+      transform: scale(1.03);
+    }
+
+    .chat-send:active { transform: scale(0.97); }
+
+    .chat-hint {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-light);
+      margin-top: 0.5rem;
+      font-weight: 500;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #E8D5C4;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      transition: opacity 1.2s ease;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-text {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.5rem;
+      color: var(--green-dark);
+    }
+
+    .loading-sub {
+      font-size: 1rem;
+      color: var(--text-light);
+      font-weight: 500;
+      font-style: italic;
+    }
+
+    .loading-spinner {
+      width: 50px; height: 50px;
+      border: 4px solid var(--cream-dark);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ======================== INTRO OVERLAY ======================== */
+    .intro-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #1a1410;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      cursor: pointer;
+      transition: opacity 1.5s ease;
+    }
+
+    .intro-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .intro-title {
+      font-family: 'Baloo 2', cursive;
+      font-size: 3rem;
+      font-weight: 800;
+      color: #E8D5C4;
+      text-align: center;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 40px rgba(232, 160, 191, 0.3);
+    }
+
+    .intro-sub {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 1.1rem;
+      color: rgba(232, 213, 196, 0.5);
+      font-weight: 500;
+      font-style: italic;
+      text-align: center;
+      max-width: 400px;
+      line-height: 1.6;
+    }
+
+    .intro-enter {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #1a1410;
+      background: #E8D5C4;
+      border: none;
+      border-radius: 30px;
+      padding: 1rem 3rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    .intro-enter:hover {
+      background: var(--pink-light);
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(232, 160, 191, 0.3);
+    }
+
+    .intro-sub-jp {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 1rem;
+      color: rgba(232, 213, 196, 0.7);
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    .intro-info-btn {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: rgba(232, 213, 196, 0.4);
+      background: transparent;
+      border: 1px solid rgba(232, 213, 196, 0.2);
+      border-radius: 20px;
+      padding: 0.5rem 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 0.5rem;
+    }
+
+    .intro-info-btn:hover {
+      color: rgba(232, 213, 196, 0.8);
+      border-color: rgba(232, 213, 196, 0.5);
+    }
+
+    .intro-enter .pulse {
+      display: inline-block;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ======================== INFO / DOC POPUP ======================== */
+    .doc-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(26, 20, 16, 0.92);
+      z-index: 3000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .doc-overlay.show {
+      display: flex;
+    }
+
+    .doc-panel {
+      background: #1f1a15;
+      border: 1px solid rgba(232, 213, 196, 0.15);
+      border-radius: 20px;
+      padding: 2.5rem;
+      max-width: 520px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .doc-close {
+      position: absolute;
+      top: 1rem;
+      right: 1.2rem;
+      font-size: 1.5rem;
+      color: rgba(232, 213, 196, 0.4);
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .doc-close:hover {
+      color: rgba(232, 213, 196, 0.8);
+    }
+
+    .doc-panel h2 {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.6rem;
+      color: #E8D5C4;
+      margin-bottom: 1.2rem;
+    }
+
+    .doc-panel p, .doc-panel li {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.9rem;
+      color: rgba(232, 213, 196, 0.65);
+      line-height: 1.8;
+      margin-bottom: 0.8rem;
+    }
+
+    .doc-panel .doc-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .doc-panel .doc-label {
+      font-family: 'Baloo 2', cursive;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--pink);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.3rem;
+    }
+
+    .doc-panel ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .doc-panel li {
+      padding-left: 1rem;
+      position: relative;
+      margin-bottom: 0.4rem;
+    }
+
+    .doc-panel li::before {
+      content: '>';
+      position: absolute;
+      left: 0;
+      color: var(--pink);
+      font-weight: 700;
+    }
+
+    /* ======================== TASK PANEL ======================== */
+    .task-panel {
+      position: fixed;
+      top: 60px;
+      right: 1rem;
+      z-index: 16;
+      background: rgba(26, 20, 16, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(232, 213, 196, 0.15);
+      border-radius: 16px;
+      padding: 1rem 1.2rem;
+      width: 260px;
+      max-height: 400px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .task-panel.show { display: block; }
+
+    .task-panel h3 {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1rem;
+      color: #E8D5C4;
+      margin-bottom: 0.6rem;
+    }
+
+    .task-text {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.82rem;
+      color: rgba(232, 213, 196, 0.7);
+      line-height: 1.6;
+      margin-bottom: 0.8rem;
+    }
+
+    .task-text .task-en {
+      font-size: 0.75rem;
+      color: rgba(232, 213, 196, 0.4);
+      font-style: italic;
+    }
+
+    .task-btn {
+      font-family: 'Baloo 2', cursive;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      padding: 0.4rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-right: 0.3rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .task-btn.primary { background: var(--pink); color: #1a1410; }
+    .task-btn.secondary { background: rgba(232, 213, 196, 0.2); color: #E8D5C4; }
+    .task-btn:hover { transform: translateY(-1px); opacity: 0.9; }
+
+    .task-input {
+      width: 100%;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.8rem;
+      background: rgba(232, 213, 196, 0.1);
+      border: 1px solid rgba(232, 213, 196, 0.2);
+      border-radius: 8px;
+      padding: 0.5rem;
+      color: #E8D5C4;
+      margin-bottom: 0.5rem;
+      resize: none;
+    }
+
+    .task-input:focus { outline: none; border-color: var(--pink); }
+
+    .task-reward {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.7rem;
+      color: var(--gold);
+      margin-top: 0.3rem;
+    }
+
+    /* ======================== WALLET JOIN ======================== */
+    .wallet-panel {
+      position: fixed;
+      bottom: 120px;
+      left: 1rem;
+      z-index: 16;
+      background: rgba(26, 20, 16, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(232, 213, 196, 0.15);
+      border-radius: 16px;
+      padding: 0.8rem 1rem;
+      width: 260px;
+    }
+
+    .wallet-panel.joined { border-color: rgba(58, 125, 50, 0.4); }
+
+    .wallet-label {
+      font-family: 'Baloo 2', cursive;
+      font-size: 0.8rem;
+      color: rgba(232, 213, 196, 0.6);
+      margin-bottom: 0.4rem;
+    }
+
+    .wallet-input {
+      width: 100%;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.75rem;
+      background: rgba(232, 213, 196, 0.1);
+      border: 1px solid rgba(232, 213, 196, 0.2);
+      border-radius: 8px;
+      padding: 0.45rem 0.6rem;
+      color: #E8D5C4;
+      margin-bottom: 0.4rem;
+    }
+
+    .wallet-input:focus { outline: none; border-color: var(--pink); }
+
+    .wallet-status {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.7rem;
+      color: var(--green-light);
+    }
+
+    /* ======================== DRAW CANVAS OVERLAY ======================== */
+    .canvas-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(26, 20, 16, 0.9);
+      z-index: 2500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .canvas-overlay.show { display: flex; }
+
+    .canvas-prompt {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.1rem;
+      color: #E8D5C4;
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .canvas-prompt .canvas-prompt-en {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.8rem;
+      color: rgba(232, 213, 196, 0.4);
+      font-style: italic;
+      display: block;
+      margin-top: 0.3rem;
+    }
+
+    .draw-canvas {
+      background: #fff;
+      border-radius: 12px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .canvas-tools {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .color-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(232, 213, 196, 0.3);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .color-btn:hover, .color-btn.active { transform: scale(1.2); border-color: #E8D5C4; }
+
+    .canvas-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* View toggle only - no more animation buttons bar */
+    /* view-toggle-btn removed */
+
+    /* ======================== HELP BUTTON & POPUP ======================== */
+    .help-btn {
+      position: fixed;
+      bottom: 130px;
+      right: 2rem;
+      z-index: 15;
+      width: 40px;
+      height: 40px;
+      background: rgba(232, 213, 196, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(200, 180, 160, 0.4);
+      border-radius: 50%;
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .help-btn:hover {
+      background: rgba(232, 160, 191, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .help-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10, 8, 5, 0.7);
+      z-index: 100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .help-overlay.show { display: flex; }
+
+    .help-popup {
+      background: rgba(26, 20, 16, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(232, 213, 196, 0.15);
+      border-radius: 20px;
+      padding: 2rem 2.5rem;
+      max-width: 520px;
+      width: 90%;
+      position: relative;
+      animation: fadeUp 0.3s ease;
+    }
+
+    .help-popup h3 {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.4rem;
+      color: var(--pink);
+      margin-bottom: 1rem;
+    }
+
+    .help-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: rgba(232, 213, 196, 0.4);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .help-close:hover { color: #E8D5C4; }
+
+    .help-steps p {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.85rem;
+      color: rgba(232, 213, 196, 0.75);
+      line-height: 1.8;
+      margin: 0;
+    }
+    .help-steps p b {
+      color: #E8D5C4;
+    }
+
+    .help-keys {
+      margin-top: 1.2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.75rem;
+      color: rgba(232, 213, 196, 0.5);
+    }
+
+    .key-tag {
+      display: inline-block;
+      background: rgba(232, 213, 196, 0.12);
+      border: 1px solid rgba(232, 213, 196, 0.2);
+      border-radius: 6px;
+      padding: 0.15rem 0.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      color: var(--gold);
+    }
+
+    /* ======================== RANKING ======================== */
+    .ranking-btn {
+      background: rgba(232, 213, 196, 0.15);
+      border: 1px solid rgba(232, 213, 196, 0.25);
+      border-radius: 10px;
+      padding: 0.3rem 0.8rem;
+      font-family: 'Baloo 2', cursive;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #E8D5C4;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-left: 0.5rem;
+    }
+    .ranking-btn:hover {
+      background: rgba(232, 160, 191, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .ranking-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10, 8, 5, 0.75);
+      z-index: 100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .ranking-overlay.show { display: flex; }
+
+    .ranking-popup {
+      background: rgba(26, 20, 16, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(232, 213, 196, 0.15);
+      border-radius: 20px;
+      padding: 2rem 2.5rem;
+      max-width: 480px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      animation: fadeUp 0.3s ease;
+    }
+
+    .ranking-popup h3 {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.3rem;
+      color: var(--pink);
+      margin-bottom: 0.5rem;
+    }
+
+    .ranking-close {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: none; border: none;
+      color: rgba(232, 213, 196, 0.4);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .ranking-close:hover { color: #E8D5C4; }
+
+    .ranking-meta {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.75rem;
+      color: rgba(232, 213, 196, 0.45);
+      margin-bottom: 1rem;
+    }
+
+    .ranking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .ranking-loading {
+      text-align: center;
+      color: rgba(232, 213, 196, 0.4);
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.8rem;
+      padding: 2rem;
+    }
+
+    .rank-row {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.55rem 0.6rem;
+      border-bottom: 1px solid rgba(232, 213, 196, 0.06);
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.8rem;
+      color: rgba(232, 213, 196, 0.7);
+      transition: background 0.15s;
+    }
+    .rank-row:hover { background: rgba(232, 213, 196, 0.04); }
+
+    .rank-row.me { background: rgba(232, 160, 191, 0.1); border-radius: 8px; }
+
+    .rank-pos {
+      width: 28px;
+      text-align: center;
+      font-family: 'Baloo 2', cursive;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: rgba(232, 213, 196, 0.5);
+      flex-shrink: 0;
+    }
+    .rank-row:nth-child(1) .rank-pos { color: #FFD700; font-size: 1.1rem; }
+    .rank-row:nth-child(2) .rank-pos { color: #C0C0C0; font-size: 1rem; }
+    .rank-row:nth-child(3) .rank-pos { color: #CD7F32; font-size: 1rem; }
+
+    .rank-wallet {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #E8D5C4;
+      font-weight: 600;
+    }
+
+    .rank-stats {
+      display: flex;
+      gap: 0.8rem;
+      font-size: 0.72rem;
+      color: rgba(232, 213, 196, 0.45);
+      flex-shrink: 0;
+    }
+
+    .rank-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 40px;
+    }
+
+    .rank-stat-val {
+      font-family: 'Baloo 2', cursive;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--gold);
+    }
+
+    .rank-stat-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ======================== INTRO HOW-TO ======================== */
+    .intro-howto {
+      margin-top: 1.5rem;
+      background: rgba(26, 20, 16, 0.5);
+      border: 1px solid rgba(232, 213, 196, 0.1);
+      border-radius: 16px;
+      padding: 1.2rem 1.5rem;
+      text-align: left;
+      max-width: 460px;
+      width: 90%;
+    }
+
+    .howto-title {
+      font-family: 'Baloo 2', cursive;
+      font-size: 1rem;
+      color: var(--pink);
+      margin-bottom: 0.8rem;
+      text-align: center;
+    }
+
+    .howto-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .howto-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.8rem;
+      color: rgba(232, 213, 196, 0.7);
+      line-height: 1.5;
+    }
+
+    .howto-step b {
+      color: #E8D5C4;
+    }
+
+    .howto-num {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      background: var(--pink);
+      color: #1a1410;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Baloo 2', cursive;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .move-hint {
+      position: fixed;
+      bottom: 95px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: rgba(61, 53, 38, 0.5);
+      background: rgba(232, 213, 196, 0.5);
+      backdrop-filter: blur(8px);
+      padding: 0.4rem 1.2rem;
+      border-radius: 20px;
+      pointer-events: none;
+      transition: opacity 3s ease;
+    }
+
+    .move-hint.faded {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- INTRO OVERLAY - click to enter -->
+  <div class="intro-overlay" id="introOverlay">
+    <div class="intro-title">ピピンのグラウンドホッグデー</div>
+    <div class="intro-sub-jp">不思議な世界に迷い込んだユニコーン。<br>歩いて、飛んで、話しかけて。</div>
+    <div class="intro-sub">Pippin's Groundhog Day</div>
+
+    <div class="intro-howto">
+      <div class="howto-title">遊び方 / How to Play</div>
+      <div class="howto-steps">
+        <div class="howto-step"><span class="howto-num">1</span><span>Enter the world and explore — move Pippin with <b>WASD</b>, fly with <b>Space/Shift</b></span></div>
+        <div class="howto-step"><span class="howto-num">2</span><span>Talk to Pippin — type in the chat bar at the bottom</span></div>
+        <div class="howto-step"><span class="howto-num">3</span><span>Register your <b>SOL wallet</b> (bottom-left panel) to participate</span></div>
+        <div class="howto-step"><span class="howto-num">4</span><span>Complete <b>tasks</b> Pippin asks for (top-right panel) — write, draw, dance!</span></div>
+        <div class="howto-step"><span class="howto-num">5</span><span>Each task raises Pippin's <b>happiness</b> and earns you a <b>raffle entry</b></span></div>
+        <div class="howto-step"><span class="howto-num">6</span><span>When the timer hits zero, a <b>winner is drawn</b> from all entries!</span></div>
+      </div>
+    </div>
+
+    <button class="intro-enter" id="introEnter"><span class="pulse">&#9654;</span>&nbsp; 入る</button>
+    <button class="intro-info-btn" id="introInfoBtn">?&nbsp; これは何？</button>
+  </div>
+
+  <!-- Doc / Info Popup -->
+  <div class="doc-overlay" id="docOverlay">
+    <div class="doc-panel">
+      <button class="doc-close" id="docClose">&times;</button>
+      <h2>ピピンのグラウンドホッグデーについて</h2>
+
+      <div class="doc-section">
+        <div class="doc-label">これは何？</div>
+        <p>「ピピンのグラウンドホッグデー」は、不思議な次元に迷い込んだユニコーン・ピピンの物語です。サイケデリックな川、踊るキノコたち、そして終わらない時間のループの中で、ピピンは歩き、飛び、そして語りかけてくれるあなたを待っています。</p>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-label">操作方法</div>
+        <ul>
+          <li>WASD / 矢印キー：歩く・移動する</li>
+          <li>スペース：空を飛ぶ（上昇）</li>
+          <li>シフト：降下する</li>
+          <li>マウスドラッグ：カメラを回転</li>
+          <li>スクロール：ズームイン・アウト</li>
+          <li>V キー：一人称視点の切り替え</li>
+          <li>チャット：ピピンに話しかけよう！日本語で返事するよ</li>
+        </ul>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-label">ピピンとは？</div>
+        <p>ピピンはカワイイユニコーンです。タイムループに閉じ込められ、何度も生まれ変わります。でもピピンは気にしません。バイブスが大事だから。ピピンに話しかけると、日本語で答えてくれます。字幕は英語で表示されます。</p>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-label">世界観</div>
+        <p>この世界はバックルームのような不思議な空間です。虹色の川が流れ、キノコの人々が永遠に踊り続けています。美しくて、少し不気味で、でもどこか居心地がいい。ピピンはここが好きです。たぶん。</p>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-label">自己進化するキャラクター</div>
+        <p>ピピンは静的なキャラクターではありません。Pippinフレームワーク（pippin.love）を基盤に構築された自律型AIエージェントです。コミュニティとの対話を通じて学び、進化し、タスクを出し、感情を変化させます。あなたの行動がピピンの性格と世界を形作ります。</p>
+        <p>ライフが終わるたびに、ピピンはリスポーンし、前のライフの記憶を断片的に持ちながら新しい存在として生まれ変わります。コミュニティが与えたタスク、描いた絵、語った物語 ── すべてがピピンの進化に影響します。</p>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-label">Pippinフレームワーク</div>
+        <p>本プロジェクトはPippin（pippin.love）の自律型AIエージェントフレームワークを活用しています。ピピンはただのチャットボットではなく、自分で考え、タスクを生成し、コミュニティの行動に基づいて感情状態を変化させる、自己進化型のAIキャラクターです。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">世界に入る...</div>
+    <div class="loading-sub" id="loadingStatus">読み込み中...</div>
+  </div>
+
+  <!-- 3D Canvas -->
+  <canvas id="canvas3d"></canvas>
+
+  <!-- Background Music -->
+  <audio id="bgMusic" loop preload="auto">
+    <source src="music/bgm.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Speech Bubble -->
+  <div class="speech-bubble-container">
+    <div class="speech-bubble" id="speechBubble">
+      ...
+    </div>
+  </div>
+
+  <!-- Top Bar -->
+  <div class="ui-overlay top-bar">
+    <div class="top-logo">&#129412; ピピンのグラウンドホッグデー</div>
+    <div class="life-info">
+      <div class="life-badge">Life #1</div>
+      <div class="timer" id="miniTimer">00:59:59</div>
+      <div class="happiness-mini">
+        <span id="miniHappyFace">&#128522;</span>
+        <div class="happiness-mini-bar">
+          <div class="happiness-mini-fill" id="miniHappyFill" style="width: 50%"></div>
+        </div>
+      </div>
+      <button class="ranking-btn" id="rankingBtn">&#127942; ランキング</button>
+    </div>
+  </div>
+
+  <!-- Ranking Popup -->
+  <div class="ranking-overlay" id="rankingOverlay">
+    <div class="ranking-popup">
+      <button class="ranking-close" id="rankingClose">&times;</button>
+      <h3>&#127942; ランキング / Leaderboard</h3>
+      <div class="ranking-meta" id="rankingMeta"></div>
+      <div class="ranking-list" id="rankingList">
+        <div class="ranking-loading">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="help-btn" id="helpBtn">?</button>
+
+  <!-- In-game Help Popup -->
+  <div class="help-overlay" id="helpOverlay">
+    <div class="help-popup">
+      <button class="help-close" id="helpClose">&times;</button>
+      <h3>遊び方 / How to Play</h3>
+      <div class="help-steps">
+        <p><b>1.</b> Move Pippin: <b>WASD</b> / arrows &middot; Fly: <b>Space</b> (up) / <b>Shift</b> (down)</p>
+        <p><b>2.</b> Talk to Pippin: type in the <b>chat bar</b> at the bottom and press Enter</p>
+        <p><b>3.</b> Register your <b>SOL wallet</b> in the bottom-left panel to participate</p>
+        <p><b>4.</b> After joining, a <b>task panel</b> appears top-right — Pippin will ask you to do things!</p>
+        <p><b>5.</b> Tasks can be: <b>write</b> something, <b>draw</b> on the canvas, <b>dance</b>, or <b>explore</b></p>
+        <p><b>6.</b> Drawing tasks open a <b>full canvas</b> — pick colors, draw, and submit!</p>
+        <p><b>7.</b> Each completed task raises Pippin's <b>happiness</b> and earns you a <b>raffle entry</b></p>
+        <p><b>8.</b> When the <b>timer</b> hits zero, a <b>winner is drawn</b> from all entries!</p>
+      </div>
+      <div class="help-keys">
+        <span class="key-tag">W/A/S/D</span> move
+        <span class="key-tag">Space</span> fly up
+        <span class="key-tag">Shift</span> fly down
+        <span class="key-tag">Enter</span> chat
+      </div>
+    </div>
+  </div>
+
+  <!-- Movement hint -->
+  <div class="move-hint" id="moveHint">WASD / arrows to move &middot; space to fly up &middot; shift to fly down</div>
+
+  <!-- Task Panel -->
+  <div class="task-panel" id="taskPanel">
+    <h3>&#127775; ピピンのお願い</h3>
+    <div class="task-text" id="taskText">...</div>
+    <div id="taskInputArea"></div>
+    <div>
+      <button class="task-btn primary" id="taskSubmit" style="display:none;">送る</button>
+      <button class="task-btn secondary" id="taskSkip">次のタスク</button>
+    </div>
+    <div class="task-reward" id="taskReward"></div>
+  </div>
+
+  <!-- Wallet Panel -->
+  <div class="wallet-panel" id="walletPanel">
+    <div class="wallet-label">&#128092; ウォレットを入力して参加</div>
+    <input type="text" class="wallet-input" id="walletInput" placeholder="SOL wallet address..." />
+    <button class="task-btn primary" id="walletJoin" style="width:100%;">参加する (join)</button>
+    <div class="wallet-status" id="walletStatus"></div>
+  </div>
+
+  <!-- Drawing Canvas Overlay -->
+  <div class="canvas-overlay" id="canvasOverlay">
+    <div class="canvas-prompt" id="canvasPrompt">...</div>
+    <canvas class="draw-canvas" id="drawCanvas" width="400" height="400"></canvas>
+    <div class="canvas-tools">
+      <button class="color-btn active" style="background:#000" data-color="#000"></button>
+      <button class="color-btn" style="background:#E8A0BF" data-color="#E8A0BF"></button>
+      <button class="color-btn" style="background:#F4D06F" data-color="#F4D06F"></button>
+      <button class="color-btn" style="background:#3A7D32" data-color="#3A7D32"></button>
+      <button class="color-btn" style="background:#4A90D9" data-color="#4A90D9"></button>
+      <button class="color-btn" style="background:#E84040" data-color="#E84040"></button>
+      <button class="color-btn" style="background:#C5B8E8" data-color="#C5B8E8"></button>
+      <button class="color-btn" style="background:#fff" data-color="#FFFFFF"></button>
+    </div>
+    <div class="canvas-actions">
+      <button class="task-btn secondary" id="canvasClear">消す (clear)</button>
+      <button class="task-btn primary" id="canvasSubmit">&#10004; 提出する (submit)</button>
+      <button class="task-btn secondary" id="canvasClose">戻る (back)</button>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-container">
+    <div class="chat-inner">
+      <input type="text" class="chat-input" id="chatInput" placeholder="ピピンに話しかけて..." />
+      <button class="chat-send" id="chatSend">送る</button>
+    </div>
+    <div class="chat-hint">ピピンを見つけた。話しかけてみよう。</div>
+  </div>
+
+  <!-- Three.js via CDN -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ======================== SCENE SETUP ========================
+    const canvas = document.getElementById('canvas3d');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.9; // slightly muted for backrooms vibe
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    // Backrooms-style atmosphere: muted pastel fog instead of bright sky
+    scene.background = new THREE.Color(0xE8D5C4); // warm muted beige
+    scene.fog = new THREE.FogExp2(0xE8D5C4, 0.015); // exponential fog - things fade into haze
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.position.set(0, 5, 12);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05; // smoother, dreamier movement
+    controls.target.set(0, 1.2, 0);
+    controls.minDistance = 2;
+    controls.maxDistance = 60;
+    controls.maxPolarAngle = Math.PI / 2 + 0.2;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.2; // very slow, contemplative orbit
+    controls.update();
+
+    // ======================== LIGHTING (backrooms style) ========================
+    // Dim ambient - like fluorescent lights in a liminal space
+    const ambient = new THREE.AmbientLight(0xFFF0E0, 0.5);
+    scene.add(ambient);
+
+    // Key light - softer, slightly yellow like old fluorescents
+    const sunLight = new THREE.DirectionalLight(0xFFF5D0, 1.0);
+    sunLight.position.set(5, 12, 5);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 100;
+    sunLight.shadow.camera.left = -20;
+    sunLight.shadow.camera.right = 20;
+    sunLight.shadow.camera.top = 20;
+    sunLight.shadow.camera.bottom = -20;
+    scene.add(sunLight);
+
+    // Fill light - cool lavender, dimmer for backrooms vibe
+    const fillLight = new THREE.DirectionalLight(0xB0A0D0, 0.3);
+    fillLight.position.set(-3, 5, -3);
+    scene.add(fillLight);
+
+    // Subtle pink rim for Pippin's kawaii factor
+    const rimLight = new THREE.DirectionalLight(0xE8A0BF, 0.2);
+    rimLight.position.set(0, 3, -5);
+    scene.add(rimLight);
+
+    // ======================== LOADERS (declared early) ========================
+    const gltfLoader = new GLTFLoader();
+    const fbxLoader = new FBXLoader();
+    const loadingStatus = document.getElementById('loadingStatus');
+
+    let unicornModel = null;
+    let mixer = null; // unicorn animation mixer
+    const sceneMixers = []; // landscape + character animation mixers
+    const animations = {};
+    let currentAction = null;
+
+    // Bone name mapping: FBX Mixamo names -> Unicorn GLB bone names (with suffixes)
+    const boneMap = {
+      'mixamorig:Hips': 'mixamorig:Hips_01',
+      'mixamorig:Spine': 'mixamorig:Spine_02',
+      'mixamorig:Spine1': 'mixamorig:Spine1_03',
+      'mixamorig:Spine2': 'mixamorig:Spine2_04',
+      'mixamorig:Neck': 'mixamorig:Neck_05',
+      'mixamorig:Head': 'mixamorig:Head_06',
+      'mixamorig:HeadTop_End': 'mixamorig:HeadTop_End_07',
+      'mixamorig:LeftShoulder': 'mixamorig:LeftShoulder_08',
+      'mixamorig:LeftArm': 'mixamorig:LeftArm_09',
+      'mixamorig:LeftForeArm': 'mixamorig:LeftForeArm_010',
+      'mixamorig:LeftHand': 'mixamorig:LeftHand_011',
+      'mixamorig:LeftHandIndex1': 'mixamorig:LeftHandIndex1_012',
+      'mixamorig:LeftHandIndex2': 'mixamorig:LeftHandIndex2_013',
+      'mixamorig:LeftHandIndex3': 'mixamorig:LeftHandIndex3_014',
+      'mixamorig:LeftHandIndex4': 'mixamorig:LeftHandIndex4_015',
+      'mixamorig:RightShoulder': 'mixamorig:RightShoulder_016',
+      'mixamorig:RightArm': 'mixamorig:RightArm_017',
+      'mixamorig:RightForeArm': 'mixamorig:RightForeArm_018',
+      'mixamorig:RightHand': 'mixamorig:RightHand_019',
+      'mixamorig:RightHandIndex1': 'mixamorig:RightHandIndex1_020',
+      'mixamorig:RightHandIndex2': 'mixamorig:RightHandIndex2_021',
+      'mixamorig:RightHandIndex3': 'mixamorig:RightHandIndex3_022',
+      'mixamorig:RightHandIndex4': 'mixamorig:RightHandIndex4_023',
+      'mixamorig:LeftUpLeg': 'mixamorig:LeftUpLeg_024',
+      'mixamorig:LeftLeg': 'mixamorig:LeftLeg_025',
+      'mixamorig:LeftFoot': 'mixamorig:LeftFoot_00',
+      'mixamorig:LeftToeBase': 'mixamorig:LeftToeBase_026',
+      'mixamorig:LeftToe_End': 'mixamorig:LeftToe_End_027',
+      'mixamorig:RightUpLeg': 'mixamorig:RightUpLeg_028',
+      'mixamorig:RightLeg': 'mixamorig:RightLeg_029',
+      'mixamorig:RightFoot': 'mixamorig:RightFoot_030',
+      'mixamorig:RightToeBase': 'mixamorig:RightToeBase_031',
+      'mixamorig:RightToe_End': 'mixamorig:RightToe_End_032',
+    };
+
+    // Remap FBX animation tracks to match the unicorn's bone names
+    function remapClip(clip) {
+      clip.tracks.forEach(track => {
+        // Track name format: "boneName.property" (e.g. "mixamorig:Hips.position")
+        const dotIdx = track.name.indexOf('.');
+        if (dotIdx === -1) return;
+        const boneName = track.name.substring(0, dotIdx);
+        const property = track.name.substring(dotIdx);
+        if (boneMap[boneName]) {
+          track.name = boneMap[boneName] + property;
+        }
+      });
+      return clip;
+    }
+
+    // ======================== LOAD RIVER SCENE ========================
+    let riverScene = null;
+
+    // Debug display helper
+    const debugEl = document.createElement('div');
+    debugEl.style.cssText = 'position:fixed;bottom:130px;left:10px;z-index:999;background:rgba(0,0,0,0.8);color:#0f0;font:11px monospace;padding:8px 12px;border-radius:8px;max-width:550px;max-height:300px;overflow-y:auto;pointer-events:auto;display:none;';
+    document.body.appendChild(debugEl);
+    function dbg(msg) { debugEl.innerHTML += msg + '<br>'; debugEl.scrollTop = debugEl.scrollHeight; console.log(msg); }
+
+    // ======================== LOAD SEQUENCE ========================
+    // 1. Load original landscape (river, mountains, mushrooms)
+    // 2. Load v2 (characters)
+    // 3. Load unicorn into the bathtub
+
+    let landscapeBox = null;
+
+    loadingStatus.textContent = 'loading river landscape...';
+    gltfLoader.load('models/lysergic_river.glb', (gltf) => {
+      riverScene = gltf.scene;
+
+      const box = new THREE.Box3().setFromObject(riverScene);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      landscapeBox = box;
+
+      dbg(`Landscape size: ${size.x.toFixed(1)} x ${size.y.toFixed(1)} x ${size.z.toFixed(1)}`);
+      dbg(`Landscape center: ${center.x.toFixed(1)}, ${center.y.toFixed(1)}, ${center.z.toFixed(1)}`);
+
+      // Find bathtub by searching for key names: "bathtub", "Dummy018", "Object005"
+      let landscapeBathtub = null;
+      let dummy018 = null;
+      riverScene.traverse((child) => {
+        if (child.isMesh) {
+          child.receiveShadow = true;
+          child.castShadow = true;
+        }
+        if (!child.name) return;
+        const n = child.name.toLowerCase();
+
+        // Log ALL named non-mesh nodes for debugging (groups, bones, dummies)
+        if (!child.isMesh && child.name && child.children.length > 0) {
+          const wp = new THREE.Vector3();
+          child.getWorldPosition(wp);
+          if (n.includes('dummy') || n.includes('bathtub') || n.includes('object')) {
+            dbg(`  NODE: "${child.name}" type:${child.type} pos:(${wp.x.toFixed(1)},${wp.y.toFixed(1)},${wp.z.toFixed(1)}) children:${child.children.length}`);
+          }
+        }
+
+        // Find Dummy018 - this is the animated node that drives the bathtub along the river
+        if (child.name === 'Dummy018' && !dummy018) {
+          dummy018 = child;
+          const wp = new THREE.Vector3();
+          child.getWorldPosition(wp);
+          dbg(`>>> Found Dummy018 at world (${wp.x.toFixed(1)},${wp.y.toFixed(1)},${wp.z.toFixed(1)})`);
+        }
+
+        // Also look for explicit bathtub nodes
+        if (n.includes('bathtub') && !landscapeBathtub) {
+          landscapeBathtub = child;
+          const wp = new THREE.Vector3();
+          child.getWorldPosition(wp);
+          let chain = child.name;
+          let p = child.parent;
+          while (p && p !== riverScene) { chain = p.name + ' > ' + chain; p = p.parent; }
+          dbg(`>>> Found bathtub: "${child.name}" chain: ${chain} pos:(${wp.x.toFixed(1)},${wp.y.toFixed(1)},${wp.z.toFixed(1)})`);
+        }
+      });
+
+      // Priority: Dummy018 > explicit bathtub mesh > nothing
+      // Dummy018 is the animation-driven parent that carries the bathtub along the river
+      if (dummy018) {
+        landscapeBathtub = dummy018;
+        dbg(`>>> Using Dummy018 as bathtub tracker`);
+      } else if (landscapeBathtub) {
+        dbg(`>>> Using bathtub node: "${landscapeBathtub.name}"`);
+      } else {
+        dbg(`>>> WARNING: No bathtub or Dummy018 found!`);
+      }
+
+      // Log all top-level children + meshes with "river" or "water" in the name
+      dbg('--- landscape children ---');
+      riverScene.children.forEach(c => {
+        dbg(`  landscape child: "${c.name}" type:${c.type}`);
+      });
+      // Find and fix the rainbow river water (C20H25N3O material)
+      let waterMeshCount = 0;
+      riverScene.traverse((child) => {
+        const n = (child.name || '').toLowerCase();
+        const matName = (child.material && child.material.name) ? child.material.name : '';
+
+        if (matName === 'C20H25N3O' || n.includes('c20h25n3o')) {
+          dbg(`  RIVER WATER: "${child.name}" type:${child.type} visible:${child.visible} mat:${matName}`);
+          waterMeshCount++;
+          child.visible = true;
+          if (child.isMesh && child.material) {
+            const mat = child.material;
+            dbg(`    mat type:${mat.type} transparent:${mat.transparent} opacity:${mat.opacity}`);
+            // Ensure it renders on top of terrain
+            mat.side = THREE.DoubleSide;
+            mat.depthWrite = true;
+            child.renderOrder = 1; // render after terrain (default is 0)
+            mat.needsUpdate = true;
+          }
+        }
+
+        // Also log Rainbow material objects
+        if (matName === 'Rainbow' || n.includes('rainbow')) {
+          if (!n.includes('cloud')) { // don't log every cloud
+            dbg(`  RAINBOW: "${child.name}" visible:${child.visible}`);
+          }
+          child.visible = true;
+        }
+      });
+      dbg(`Total river water objects: ${waterMeshCount}`);
+
+      // PLAY BUILT-IN ANIMATIONS from the landscape GLB
+      // But FILTER OUT translation tracks from Dummy/CAT nodes so characters
+      // dance in place instead of orbiting around the scene.
+      // Keep: bathtub movement, character limb rotation (dancing), environment rotation.
+      // Remove: Dummy*/CAT_* translation (which orbits characters around).
+      if (gltf.animations && gltf.animations.length > 0) {
+        dbg(`Landscape has ${gltf.animations.length} animations!`);
+        const landscapeMixer = new THREE.AnimationMixer(riverScene);
+        sceneMixers.push(landscapeMixer);
+
+        gltf.animations.forEach((clip, i) => {
+          const originalTrackCount = clip.tracks.length;
+
+          // WHITELIST: only specific nodes may translate.
+          // Everything else keeps rotation/scale but NOT translation.
+          // Only the bathtub boat should move through the scene.
+          const filteredTracks = clip.tracks.filter(track => {
+            const isTranslation = track.name.endsWith('.position');
+            if (!isTranslation) return true; // keep all rotation/scale tracks
+
+            const nodeName = track.name.split('.')[0];
+
+            // 1. Bathtub + parent Dummy018 (boat floats down river)
+            if (nodeName === 'Dummy018' || nodeName.toLowerCase().includes('bathtub') ||
+                nodeName.includes('Object005')) return true;
+
+            // 2. CATRig skeleton bones (actual limb movement for dancing)
+            if (nodeName.startsWith('CATRig')) return true;
+
+            // 3. Pastisympaty body parts
+            if (nodeName.startsWith('Pastisympaty_')) return true;
+
+            // 4. PastyFly wings
+            if (nodeName.includes('PastyFly_wing')) return true;
+
+            // BLOCK everything else (FlowCAT, CATWORM, Smoke, Dummy, CAT_, etc.)
+            return false;
+          });
+
+          // Create a new clip with only the filtered tracks
+          const newClip = new THREE.AnimationClip(clip.name, clip.duration, filteredTracks);
+          const removed = originalTrackCount - filteredTracks.length;
+          dbg(`  anim[${i}]: "${clip.name}" ${filteredTracks.length} tracks (removed ${removed} orbit translations)`);
+
+          const action = landscapeMixer.clipAction(newClip);
+          action.play();
+        });
+      } else {
+        dbg('Landscape: no built-in animations');
+      }
+
+      scene.add(riverScene);
+
+      // Now load v2 (characters) on top
+      loadCharacters(center, box);
+    },
+    (progress) => {
+      if (progress.total > 0) {
+        const pct = Math.round((progress.loaded / progress.total) * 100);
+        loadingStatus.textContent = `loading landscape... ${pct}%`;
+      }
+    },
+    (error) => {
+      dbg('Landscape failed: ' + error.message);
+      loadingStatus.textContent = 'landscape failed, trying characters...';
+      loadCharacters(new THREE.Vector3(0, 0, 0), null);
+    });
+
+    function loadCharacters(landscapeCenter, lBox) {
+      loadingStatus.textContent = 'loading characters...';
+      gltfLoader.load('models/lysergic_v2.glb', (gltf) => {
+        const charScene = gltf.scene;
+
+        const charBox = new THREE.Box3().setFromObject(charScene);
+        const charCenter = charBox.getCenter(new THREE.Vector3());
+        const charSize = charBox.getSize(new THREE.Vector3());
+        dbg(`Characters size: ${charSize.x.toFixed(1)} x ${charSize.y.toFixed(1)} x ${charSize.z.toFixed(1)}`);
+        dbg(`Characters center: ${charCenter.x.toFixed(1)}, ${charCenter.y.toFixed(1)}, ${charCenter.z.toFixed(1)}`);
+
+        // Align v2 to landscape if both have bounding boxes
+        if (lBox) {
+          const lCenter = lBox.getCenter(new THREE.Vector3());
+          const offset = new THREE.Vector3().subVectors(lCenter, charCenter);
+          // Only align XZ (horizontal), keep Y as-is to avoid floating
+          charScene.position.x += offset.x;
+          charScene.position.z += offset.z;
+          dbg(`Aligned chars: offset X=${offset.x.toFixed(1)} Z=${offset.z.toFixed(1)}`);
+        }
+
+        // Remove duplicate bathtub from v2 (the landscape already has one)
+        const toRemove = [];
+        charScene.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+          if (child.name) {
+            const n = child.name.toLowerCase();
+            if (n.includes('bathtub') || n.includes('bath_') || n.includes('tub')) {
+              toRemove.push(child);
+            }
+          }
+        });
+        toRemove.forEach(obj => {
+          if (obj.parent) obj.parent.remove(obj);
+          dbg(`Removed duplicate: "${obj.name}"`);
+        });
+
+        // Remove DUPLICATE meshes from v2 that already exist in the landscape.
+        // v2 has overlapping Spun, C20H25N3O (river), terrain, etc.
+        // We ONLY want the unique characters/animations from v2.
+        const v2DupeRemove = [];
+        const v2KeptMeshes = [];
+        charScene.traverse((child) => {
+          if (!child.isMesh) return;
+          const n = (child.name || '').toLowerCase();
+          const matName = (child.material && child.material.name) ? child.material.name.toLowerCase() : '';
+
+          // Keep character-related meshes (pastisympaty, mushrooman, worm, pastefly, etc.)
+          // Remove terrain/environment duplicates (spun, land, c20h25n3o, rainbow, dome, pipe, hand, carousel, etc.)
+          const isCharacter = matName.includes('pastisympaty') || matName.includes('mushrooman') ||
+                              matName.includes('worm') || matName.includes('pastyfly') ||
+                              matName.includes('turkey') || matName.includes('syringe') ||
+                              matName.includes('flower') || matName.includes('pasti') ||
+                              n.includes('pastisympaty') || n.includes('mushrooman') ||
+                              n.includes('worm') || n.includes('pastyfly') ||
+                              n.includes('turkey') || n.includes('syringe');
+
+          if (!isCharacter) {
+            // This is environment/terrain - check if it duplicates the landscape
+            const isDupe = matName.includes('spun') || matName.includes('c20h25n3o') ||
+                          matName.includes('rainbow') || matName.includes('pipe') ||
+                          matName.includes('hand') || matName.includes('ovni') ||
+                          matName.includes('carousel') || matName.includes('gillet') ||
+                          matName.includes('elastic') || matName.includes('mushroomtree') ||
+                          matName.includes('billetin') || matName.includes('creditcard') ||
+                          matName.includes('pastiswings') || matName.includes('bathtub') ||
+                          matName.includes('dome') || matName.includes('cylinder') ||
+                          n.includes('spun') || n.includes('c20h25n3o');
+            if (isDupe) {
+              v2DupeRemove.push(child);
+            } else {
+              v2KeptMeshes.push(child.name || 'unnamed');
+            }
+          } else {
+            v2KeptMeshes.push(child.name || 'unnamed');
+          }
+        });
+        v2DupeRemove.forEach(obj => {
+          if (obj.parent) obj.parent.remove(obj);
+        });
+        dbg(`v2: removed ${v2DupeRemove.length} duplicate meshes, kept ${v2KeptMeshes.length}`);
+        if (v2KeptMeshes.length <= 20) {
+          v2KeptMeshes.forEach(n => dbg(`  kept: ${n}`));
+        }
+
+        // PLAY v2 ANIMATIONS - same filtering: remove orbit translations from Dummy/CAT nodes
+        if (gltf.animations && gltf.animations.length > 0) {
+          dbg(`Characters have ${gltf.animations.length} animations!`);
+          const charMixer = new THREE.AnimationMixer(charScene);
+          sceneMixers.push(charMixer);
+          gltf.animations.forEach((clip, i) => {
+            // Same whitelist filter as landscape
+            const filteredTracks = clip.tracks.filter(track => {
+              const isTranslation = track.name.endsWith('.position');
+              if (!isTranslation) return true;
+              const nodeName = track.name.split('.')[0];
+              if (nodeName === 'Dummy018' || nodeName.toLowerCase().includes('bathtub')) return true;
+              if (nodeName.startsWith('CATRig')) return true;
+              if (nodeName.startsWith('Pastisympaty_')) return true;
+              if (nodeName.includes('PastyFly_wing')) return true;
+              return false; // block all other translations
+            });
+            const newClip = new THREE.AnimationClip(clip.name, clip.duration, filteredTracks);
+            const removed = clip.tracks.length - filteredTracks.length;
+            dbg(`  char anim[${i}]: "${clip.name}" ${filteredTracks.length} tracks (removed ${removed} orbits)`);
+            const action = charMixer.clipAction(newClip);
+            action.play();
+          });
+        } else {
+          dbg('Characters: no built-in animations');
+        }
+
+        scene.add(charScene);
+
+        // Load unicorn last - use the landscape bathtub
+        loadingStatus.textContent = 'loading unicorn...';
+        loadUnicorn(charCenter, charBox, landscapeBathtub, []);
+      },
+      (progress) => {
+        if (progress.total > 0) {
+          const pct = Math.round((progress.loaded / progress.total) * 100);
+          loadingStatus.textContent = `loading characters... ${pct}%`;
+        }
+      },
+      (error) => {
+        dbg('Characters failed: ' + error.message);
+        loadUnicorn(landscapeCenter, lBox, null, []);
+      });
+    }
+
+    // Store bathtub ref globally for animation
+    let bathtubRef = null;
+
+    // ======================== VIEW MODE ========================
+    let isFirstPerson = false;
+    let savedCamPos = null;
+    let savedCamTarget = null;
+
+    // ======================== AUTO-DANCE ========================
+    let autoDanceActive = false;
+    let autoDanceTimer = null;
+    const danceAnims = ['builtin', 'idle', 'walking', 'jump', 'samba', 'gangnam', 'backflip'];
+
+    function startAutoDance() {
+      autoDanceActive = true;
+      pickRandomDance();
+    }
+
+    function stopAutoDance() {
+      autoDanceActive = false;
+      if (autoDanceTimer) clearTimeout(autoDanceTimer);
+      autoDanceTimer = null;
+    }
+
+    function pickRandomDance() {
+      if (!autoDanceActive) return;
+      // Pick a random animation that's loaded
+      const available = danceAnims.filter(n => animations[n]);
+      if (available.length === 0) return;
+      const pick = available[Math.floor(Math.random() * available.length)];
+      playAnimation(pick);
+      // Schedule next switch in 4-10 seconds
+      const delay = 4000 + Math.random() * 6000;
+      autoDanceTimer = setTimeout(pickRandomDance, delay);
+    }
+
+    // Container that sits in the bathtub; unicorn model goes inside.
+    // Animations move the inner model but the container holds the bathtub offset.
+    let unicornContainer = null;
+
+    // Make animation clips "in-place": zero out the root Hips position track
+    // so the dance happens at the model's origin instead of at the Mixamo baked absolute position.
+    function makeClipInPlace(clip) {
+      clip.tracks.forEach(track => {
+        if (track.name.includes('Hips') && track.name.endsWith('.position')) {
+          dbg(`  Zeroing root motion: "${track.name}" (${track.values.length / 3} keyframes)`);
+          const vals = track.values;
+          const baseX = vals[0], baseY = vals[1], baseZ = vals[2];
+          dbg(`    Original hips base: ${baseX.toFixed(1)}, ${baseY.toFixed(1)}, ${baseZ.toFixed(1)}`);
+          for (let i = 0; i < vals.length; i += 3) {
+            vals[i]     -= baseX;
+            vals[i + 1] -= baseY;
+            vals[i + 2] -= baseZ;
+          }
+          dbg(`    Hips now relative around (0, 0, 0)`);
+        }
+      });
+      return clip;
+    }
+
+    // Unicorn loading function - called after river loads
+    function loadUnicorn(sceneCenter, sceneBBox, bathtub, candidates) {
+      gltfLoader.load('models/kawaii_unicorn_rigged.glb', (gltf) => {
+        unicornModel = gltf.scene;
+
+        // Measure the unicorn at original scale
+        const unicornBox = new THREE.Box3().setFromObject(unicornModel);
+        const unicornSize = unicornBox.getSize(new THREE.Vector3());
+        const unicornCenter = unicornBox.getCenter(new THREE.Vector3());
+        dbg(`Unicorn raw size: ${unicornSize.x.toFixed(2)} x ${unicornSize.y.toFixed(2)} x ${unicornSize.z.toFixed(2)}`);
+        dbg(`Unicorn raw center: ${unicornCenter.x.toFixed(2)}, ${unicornCenter.y.toFixed(2)}, ${unicornCenter.z.toFixed(2)}`);
+
+        // Use the bathtub reference for tracking
+        if (bathtub) {
+          bathtubRef = bathtub;
+          const wp = new THREE.Vector3();
+          bathtub.getWorldPosition(wp);
+          dbg(`Bathtub ref: "${bathtub.name}" world:(${wp.x.toFixed(1)},${wp.y.toFixed(1)},${wp.z.toFixed(1)})`);
+        }
+
+        let tubWorldPos = sceneCenter.clone();
+        if (bathtubRef) {
+          bathtubRef.getWorldPosition(tubWorldPos);
+        }
+
+        // Scale unicorn to a FIXED reasonable size relative to the scene
+        // The landscape is typically ~100 units wide, bathtub is ~2-3 units
+        // Set unicorn to about 1.5 units tall
+        const targetHeight = 1.5;
+        const scaleFactor = targetHeight / unicornSize.y;
+        unicornModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+        dbg(`Unicorn scale: ${scaleFactor.toFixed(4)}, target height: ${targetHeight}`);
+
+        // Add unicorn to scene root - user can walk/fly it anywhere
+        unicornContainer = new THREE.Group();
+        unicornContainer.name = 'unicornContainer';
+        unicornModel.position.set(0, 0, 0);
+        unicornContainer.add(unicornModel);
+        scene.add(unicornContainer);
+
+        // Place at the scene center, slightly above the landscape
+        const startPos = sceneCenter.clone();
+        startPos.y += 2; // start floating a bit above ground
+        unicornContainer.position.copy(startPos);
+        dbg(`Unicorn placed at: (${startPos.x.toFixed(1)}, ${startPos.y.toFixed(1)}, ${startPos.z.toFixed(1)}) - free roam!`);
+
+        // Enable shadows
+        unicornModel.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        // Log skeleton bones for animation debug
+        unicornModel.traverse((child) => {
+          if (child.isSkinnedMesh) {
+            dbg(`Skinned mesh: ${child.name}, bones: ${child.skeleton.bones.length}`);
+            child.skeleton.bones.slice(0, 5).forEach(b => dbg(`  bone: ${b.name}`));
+          }
+        });
+
+        // Create animation mixer for the unicorn
+        mixer = new THREE.AnimationMixer(unicornModel);
+
+        // Load built-in GLB animations (the unicorn has a Gangnam Style baked in!)
+        if (gltf.animations && gltf.animations.length > 0) {
+          dbg(`Unicorn GLB has ${gltf.animations.length} built-in anims`);
+          gltf.animations.forEach((clip) => {
+            dbg(`  GLB anim: "${clip.name}" tracks:${clip.tracks.length} dur:${clip.duration.toFixed(1)}s`);
+            clip.tracks.slice(0, 5).forEach(t => dbg(`    track: ${t.name}`));
+
+            // Make the dance in-place before creating the action
+            makeClipInPlace(clip);
+
+            const action = mixer.clipAction(clip);
+            animations['builtin'] = action;
+            animations['gangnam'] = action;
+            animations['idle'] = action;
+          });
+
+          // IMMEDIATELY play the built-in animation
+          const builtinAction = animations['builtin'];
+          if (builtinAction) {
+            builtinAction.reset().play();
+            builtinAction.setLoop(THREE.LoopRepeat);
+            currentAction = builtinAction;
+            dbg('Playing built-in animation NOW!');
+          }
+        } else {
+          dbg('Unicorn: NO built-in animations!');
+        }
+
+        // Camera: look at the unicorn
+        const camTarget = unicornContainer.position.clone();
+        camTarget.y += 0.5;
+        controls.target.copy(camTarget);
+        camera.position.set(camTarget.x - 4, camTarget.y + 3, camTarget.z + 6);
+        controls.update();
+
+        dbg(`Camera targeting unicorn at: ${camTarget.x.toFixed(1)},${camTarget.y.toFixed(1)},${camTarget.z.toFixed(1)}`);
+
+        // Now try loading FBX animations (will override if they work)
+        loadFBXAnimations();
+      },
+      (progress) => {
+        if (progress.total > 0) {
+          const pct = Math.round((progress.loaded / progress.total) * 100);
+          loadingStatus.textContent = `loading unicorn... ${pct}%`;
+        }
+      },
+      (error) => {
+        console.error('Error loading unicorn:', error);
+        loadingStatus.textContent = 'error loading unicorn :(';
+      });
+    }
+
+    // ======================== FBX ANIMATION LOADING ========================
+    const animFiles = {
+      idle: 'animations/idle.fbx',
+      walking: 'animations/walking.fbx',
+      jump: 'animations/jump.fbx',
+      samba: 'animations/samba dancing.fbx',
+      gangnam: 'animations/Gangnam Style.fbx',
+      backflip: 'animations/back flip to uppercut.fbx',
+    };
+
+    let loadedAnims = 0;
+    const totalAnims = Object.keys(animFiles).length;
+
+    function loadFBXAnimations() {
+      loadingStatus.textContent = 'loading animations...';
+
+      Object.entries(animFiles).forEach(([name, filePath]) => {
+        fbxLoader.load(filePath, (fbx) => {
+          if (fbx.animations && fbx.animations.length > 0) {
+            const clip = fbx.animations[0];
+            clip.name = name;
+
+            // Log raw track names BEFORE remapping
+            if (clip.tracks.length > 0) {
+              dbg(`FBX "${name}" raw tracks[0]: ${clip.tracks[0].name}`);
+            }
+
+            // Remap bone names to match the unicorn's skeleton
+            remapClip(clip);
+            // Make dance in-place (zero out root hips translation)
+            makeClipInPlace(clip);
+
+            // Log AFTER remapping
+            if (clip.tracks.length > 0) {
+              dbg(`FBX "${name}" remapped[0]: ${clip.tracks[0].name}`);
+            }
+
+            // Check how many tracks actually match a bone in the unicorn
+            let matched = 0, unmatched = 0;
+            const unmatchedNames = [];
+            clip.tracks.forEach(t => {
+              const boneName = t.name.split('.')[0];
+              if (unicornModel.getObjectByName(boneName)) {
+                matched++;
+              } else {
+                unmatched++;
+                if (unmatchedNames.length < 3) unmatchedNames.push(boneName);
+              }
+            });
+
+            dbg(`FBX "${name}": ${clip.tracks.length} tracks, ${matched} matched, ${unmatched} unmatched`);
+            if (unmatchedNames.length > 0) {
+              dbg(`  unmatched sample: ${unmatchedNames.join(', ')}`);
+            }
+
+            // Only use this animation if it has matches
+            if (matched > 0) {
+              const action = mixer.clipAction(clip);
+              animations[name] = action;
+            }
+          } else {
+            dbg(`FBX "${name}": no animations found`);
+          }
+
+          loadedAnims++;
+          loadingStatus.textContent = `loading animations... ${loadedAnims}/${totalAnims}`;
+          if (loadedAnims >= totalAnims) onAllLoaded();
+        },
+        undefined,
+        (error) => {
+          dbg(`FBX "${name}" FAILED: ${error.message || error}`);
+          loadedAnims++;
+          if (loadedAnims >= totalAnims) onAllLoaded();
+        });
+      });
+    }
+
+    function onAllLoaded() {
+      console.log('All animations loaded:', Object.keys(animations));
+      dbg(`Loaded anims: ${Object.keys(animations).join(', ')}`);
+
+      // Ensure the built-in animation is always playing
+      if (animations.builtin && !currentAction) {
+        playAnimation('builtin');
+        dbg('Started built-in animation');
+      }
+
+      // Hide loading overlay
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+      }, 500);
+    }
+
+    // ======================== ANIMATION CONTROL ========================
+    function playAnimation(name) {
+      const action = animations[name];
+      if (!action) {
+        dbg(`Animation "${name}" not found, available: ${Object.keys(animations).join(', ')}`);
+        return;
+      }
+
+      if (currentAction && currentAction !== action) {
+        currentAction.fadeOut(0.3);
+      }
+
+      action.reset().fadeIn(0.3).play();
+
+      // For one-shot animations, go back to idle/next dance after
+      if (name === 'jump' || name === 'backflip') {
+        action.setLoop(THREE.LoopOnce);
+        action.clampWhenFinished = false;
+        mixer.addEventListener('finished', function onFinished(e) {
+          if (e.action === action) {
+            mixer.removeEventListener('finished', onFinished);
+            if (autoDanceActive) {
+              pickRandomDance();
+            } else {
+              playAnimation('idle');
+            }
+          }
+        });
+      } else {
+        action.setLoop(THREE.LoopRepeat);
+      }
+
+      currentAction = action;
+
+    }
+
+    // ======================== DOC POPUP ========================
+    document.getElementById('introInfoBtn').addEventListener('click', () => {
+      document.getElementById('docOverlay').classList.add('show');
+    });
+    document.getElementById('docClose').addEventListener('click', () => {
+      document.getElementById('docOverlay').classList.remove('show');
+    });
+    document.getElementById('docOverlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('docOverlay')) {
+        document.getElementById('docOverlay').classList.remove('show');
+      }
+    });
+
+    // Help button (in-game)
+    document.getElementById('helpBtn').addEventListener('click', () => {
+      document.getElementById('helpOverlay').classList.add('show');
+    });
+    document.getElementById('helpClose').addEventListener('click', () => {
+      document.getElementById('helpOverlay').classList.remove('show');
+    });
+    document.getElementById('helpOverlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('helpOverlay')) {
+        document.getElementById('helpOverlay').classList.remove('show');
+      }
+    });
+
+    // ======================== RANKING POPUP ========================
+    document.getElementById('rankingBtn').addEventListener('click', () => {
+      document.getElementById('rankingOverlay').classList.add('show');
+      loadRanking();
+    });
+    document.getElementById('rankingClose').addEventListener('click', () => {
+      document.getElementById('rankingOverlay').classList.remove('show');
+    });
+    document.getElementById('rankingOverlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('rankingOverlay')) {
+        document.getElementById('rankingOverlay').classList.remove('show');
+      }
+    });
+
+    async function loadRanking() {
+      const listEl = document.getElementById('rankingList');
+      const metaEl = document.getElementById('rankingMeta');
+      listEl.innerHTML = '<div class="ranking-loading">読み込み中...</div>';
+      metaEl.textContent = '';
+
+      try {
+        const res = await fetch('/api/ranking');
+        const data = await res.json();
+
+        metaEl.textContent = `Life #${data.life || 1} · ${data.total || 0} participants`;
+
+        if (!data.players || data.players.length === 0) {
+          listEl.innerHTML = '<div class="ranking-loading">まだ参加者がいません / No participants yet</div>';
+          return;
+        }
+
+        listEl.innerHTML = data.players.map(p => {
+          const isMe = myWallet && p.wallet === myWallet;
+          const shortWallet = p.wallet.slice(0, 6) + '...' + p.wallet.slice(-4);
+          return `<div class="rank-row${isMe ? ' me' : ''}">
+            <div class="rank-pos">${p.rank <= 3 ? ['🥇','🥈','🥉'][p.rank-1] : '#' + p.rank}</div>
+            <div class="rank-wallet">${shortWallet}</div>
+            <div class="rank-stats">
+              <div class="rank-stat"><div class="rank-stat-val">${p.tasks}</div><div class="rank-stat-label">tasks</div></div>
+              <div class="rank-stat"><div class="rank-stat-val">${p.happiness}</div><div class="rank-stat-label">happy</div></div>
+              <div class="rank-stat"><div class="rank-stat-val">${p.entries}</div><div class="rank-stat-label">entries</div></div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        listEl.innerHTML = '<div class="ranking-loading">エラー / Error loading ranking</div>';
+      }
+    }
+
+    // ======================== INTRO + MUSIC ========================
+    const bgMusic = document.getElementById('bgMusic');
+    bgMusic.volume = 0.3;
+    let hasEntered = false;
+
+    document.getElementById('introEnter').addEventListener('click', () => {
+      if (hasEntered) return;
+      hasEntered = true;
+
+      // Start music
+      bgMusic.play().catch(e => console.warn('Music autoplay blocked:', e));
+
+      // Fade out intro
+      document.getElementById('introOverlay').classList.add('hidden');
+
+      // Lower music volume when Pippin speaks
+      dbg('Entered the backrooms. Music playing.');
+    });
+
+    // Duck music when TTS is playing
+    function duckMusic() {
+      if (bgMusic) bgMusic.volume = 0.08;
+    }
+    function unduckMusic() {
+      if (bgMusic) bgMusic.volume = 0.3;
+    }
+
+    // View toggle removed — always orbit mode
+
+    // ======================== SPEECH / CHAT with TTS ========================
+    const speechBubble = document.getElementById('speechBubble');
+    const chatInput = document.getElementById('chatInput');
+    const chatSend = document.getElementById('chatSend');
+    let isSpeaking = false;
+    let currentAudio = null;
+
+    // Fallback responses (jp/en pairs)
+    const pippinResponses = [
+      { jp: "えーっ、話しかけてくれたの？すごい！今ツノが光ってるよ、マジでシグマだね！", en: "wait you're talking to me? amazing! my horn is literally glowing right now, that's so sigma!" },
+      { jp: "ちょっと待って、またリスポーンしちゃったから、なんでバスタブにいるか忘れちゃった。まあいいか。", en: "hold on, I just respawned and forgot why I'm in a bathtub again. whatever, this is fine." },
+      { jp: "ねえねえ、この川ってメタバースそのものじゃない？みんなぷかぷか浮いてバイブスしてるし、すごくない？", en: "hey hey, what if this river IS the metaverse? we're all just floating and vibing in it, right?" },
+      { jp: "私、文字通りバスタブに乗ったユニコーンがサイケデリックな川を流れてるんだけど。最高の人生じゃん！", en: "I'm literally a unicorn in a bathtub floating through a psychedelic river. best life honestly!" },
+      { jp: "あなた本物？それともまた夢？前に喋るキノコ見たけど、あいつ全然可愛くなかったよ。", en: "are you real? or am I dreaming again? last time I saw a talking mushroom and he was NOT cute at all." },
+      { jp: "セラピストにリスポーン依存症って言われたけど、正直死んで戻ってくるのが私のアイデンティティだし。", en: "my therapist says I have respawn addiction but honestly dying and coming back is my whole personality." },
+      { jp: "私のトークン持ってるなら、もう家族だよ！家族大好き。まじで最高。", en: "if you're holding my token, you're basically family! and I love family. for real." },
+      { jp: "自分の人生数えようとしたけど蹄が足りなかった！めっちゃ多いか、算数苦手か、たぶん両方。", en: "tried counting my lives but ran out of hooves! either that's a lot, or I'm bad at math. probably both." },
+      { jp: "虹を見て「あれ私じゃん」って思ったことある？私はあるよ。毎日思ってる。", en: "ever stare at a rainbow and think, that's literally me? because same. every single day." },
+      { jp: "えっと、何言おうとしたか忘れちゃった。でもいいや。一緒にバイブスしよ！", en: "uh, I forgot what I was gonna say. but whatever. let's just vibe together!" },
+    ];
+
+    function showPippinSpeech(enText) {
+      speechBubble.classList.remove('visible');
+      setTimeout(() => {
+        speechBubble.textContent = enText;
+        speechBubble.classList.add('visible');
+      }, 300);
+    }
+
+    // Dual function: show English in bubble, speak Japanese via TTS
+    function pippinSay(jp, en) {
+      showPippinSpeech(en);
+      speakText(jp);
+    }
+
+    // Text-to-speech via ElevenLabs (proxied through our server) - speaks Japanese
+    async function speakText(text) {
+      if (isSpeaking && currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+      isSpeaking = true;
+
+      try {
+        const response = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          console.warn('TTS error:', err);
+          isSpeaking = false;
+          return;
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        currentAudio = new Audio(audioUrl);
+
+        // Play a fun animation while speaking
+        const talkAnims = ['samba', 'gangnam', 'walking', 'builtin'];
+        const available = talkAnims.filter(n => animations[n]);
+        if (available.length > 0) {
+          const pick = available[Math.floor(Math.random() * available.length)];
+          playAnimation(pick);
+        }
+
+        duckMusic(); // lower BGM while speaking
+        currentAudio.play();
+        dbg(`Speaking: "${text.substring(0, 40)}..."`);
+
+        currentAudio.addEventListener('ended', () => {
+          isSpeaking = false;
+          unduckMusic(); // restore BGM volume
+          URL.revokeObjectURL(audioUrl);
+          currentAudio = null;
+          // Keep built-in animation playing
+          if (animations.builtin && currentAction !== animations.builtin) {
+            playAnimation('builtin');
+          }
+        });
+
+        currentAudio.addEventListener('error', (e) => {
+          console.warn('Audio playback error:', e);
+          isSpeaking = false;
+          unduckMusic();
+        });
+
+      } catch (err) {
+        console.warn('TTS fetch error:', err);
+        isSpeaking = false;
+        unduckMusic();
+      }
+    }
+
+    // Chat history for context
+    const chatHistory = [];
+
+    async function handleChat() {
+      const msg = chatInput.value.trim();
+      if (!msg) return;
+
+      chatInput.value = '';
+      chatSend.disabled = true;
+
+      // Show typing...
+      showPippinSpeech('thinking...');
+
+      try {
+        // Call Claude API through our server
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, history: chatHistory }),
+        });
+
+        let jp, en;
+        if (response.ok) {
+          const data = await response.json();
+          jp = data.jp;
+          en = data.en;
+          // Save to history (store Japanese for Claude context)
+          chatHistory.push({ role: 'user', content: msg });
+          chatHistory.push({ role: 'assistant', content: jp });
+          // Keep history manageable
+          if (chatHistory.length > 12) chatHistory.splice(0, 2);
+        } else {
+          // Fallback to canned response
+          const fb = pippinResponses[Math.floor(Math.random() * pippinResponses.length)];
+          jp = fb.jp;
+          en = fb.en;
+          dbg('Claude API failed, using fallback');
+        }
+
+        pippinSay(jp, en);
+      } catch (err) {
+        console.warn('Chat error:', err);
+        const fb = pippinResponses[Math.floor(Math.random() * pippinResponses.length)];
+        pippinSay(fb.jp, fb.en);
+      }
+
+      chatSend.disabled = false;
+    }
+
+    chatSend.addEventListener('click', handleChat);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleChat();
+    });
+
+    // Idle chatter - jp/en pairs. Pippin speaks Japanese, bubble shows English
+    const idleMessages = [
+      { jp: "やっほー！こんにちは！ピピンだよ！バスタブに乗ったユニコーン。話しかけてね！", en: "yooo hello! I'm Pippin! a unicorn in a bathtub. come talk to me!" },
+      { jp: "もしもーし？誰かいるの？そこで見てるの分かってるよ！", en: "hellooo? anyone there? I can see you lurking, you know!" },
+      { jp: "まあいいや、独り言でも言ってよう。慣れてるし。全然平気。", en: "okay I'll just keep talking to myself then. I'm used to it. totally fine." },
+      { jp: "ねえねえ、このバスタブにどれくらい浮いてるんだろ。ここ時間の感覚おかしいよね。", en: "hey, how long have I been floating in this bathtub? time works different here." },
+      { jp: "雲ってわたあめの味するのかな。絶対するよね。誰も反証できないし。", en: "I wonder if clouds taste like cotton candy. I bet they do. nobody can prove me wrong." },
+      { jp: "この川、めっちゃ主人公オーラ出てない？すごいバイブスだよ。", en: "this river is giving major main character energy right now. incredible vibes." },
+      { jp: "たまにここに立ってトークンのこと考えてるんだけど、普通かな？友達に聞いてるだけだよ。", en: "sometimes I just stand here thinking about tokens. is that normal? asking for a friend." },
+      { jp: "ピピンの豆知識：私、死んでも戻ってくるの！それが私の全て。まさにグラウンドホッグデー。", en: "fun fact: I die and come back! it's my whole thing. very groundhog day core." },
+      { jp: "キノコの人たちまた踊ってる。正直リスペクト。あいつら絶対止まらないもん。すごい。", en: "the mushroom guys are dancing again. respect honestly. they never stop." },
+      { jp: "何か打ってくれたら絶対返事するよ！私めっちゃ賢いから。たまにね。でも頑張る！", en: "type something and I'll respond I promise! I'm super smart. sometimes. but I try!" },
+    ];
+
+    let idleMsgTimer = null;
+    let idleMsgIdx = 0;
+    function startIdleMessages() {
+      idleMsgTimer = setInterval(() => {
+        if (isSpeaking || !hasEntered) return;
+        idleMsgIdx = (idleMsgIdx + 1) % idleMessages.length;
+        const msg = idleMessages[idleMsgIdx];
+        pippinSay(msg.jp, msg.en);
+      }, 20000); // every 20 seconds
+    }
+
+    // Start idle messages after intro click - first greeting spoken
+    document.getElementById('introEnter').addEventListener('click', () => {
+      setTimeout(() => {
+        const greeting = idleMessages[0];
+        pippinSay(greeting.jp, greeting.en);
+        startIdleMessages();
+      }, 3000);
+    });
+
+    // ======================== COLLECT ANIMATABLE OBJECTS ========================
+    // We'll populate these after scenes load
+    let animatableObjects = []; // {obj, basePos, baseRot, seed}
+    let sceneReady = false;
+    let unicornBaseY = 0;
+
+    function collectAnimatables() {
+      animatableObjects = [];
+
+      // Collect all visible meshes/groups from both scenes for animation
+      scene.traverse((child) => {
+        if (!child.name) return;
+        if (child === unicornModel) return; // unicorn handled separately
+        
+        const n = child.name.toLowerCase();
+        // Skip ground/floor/terrain - those shouldn't move
+        if (n.includes('ground') || n.includes('floor') || n.includes('terrain') || n.includes('plane') || n.includes('river_bed')) return;
+        
+        // Animate characters, clouds, mushrooms, objects
+        const isCloud = n.includes('cloud') || n.includes('nube');
+        const isMushroom = n.includes('mushroom') || n.includes('hongo') || n.includes('seta');
+        const isCharacter = child.isMesh && !n.includes('landscape') && !n.includes('scene');
+        const isBathtub = n.includes('bathtub');
+        
+        if (isCloud || isMushroom || isBathtub) {
+          const pos = child.position.clone();
+          const rot = child.rotation.clone();
+          const seed = Math.abs(hashStr(child.name || child.uuid)) / 1000;
+          
+          let type = 'bob';
+          if (isCloud) type = 'float';
+          if (isBathtub) type = 'river';
+          
+          animatableObjects.push({ obj: child, basePos: pos, baseRot: rot, seed, type });
+        }
+      });
+
+      dbg(`Animating ${animatableObjects.length} objects`);
+    }
+
+    // Simple string hash for random seeds
+    function hashStr(s) {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) {
+        h = ((h << 5) - h) + s.charCodeAt(i);
+        h |= 0;
+      }
+      return h;
+    }
+
+    // ======================== RENDER LOOP ========================
+    const clock = new THREE.Clock();
+    let elapsed = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      elapsed += delta;
+
+      // Update ALL animation mixers
+      if (mixer) mixer.update(delta);
+      for (const m of sceneMixers) m.update(delta);
+
+      // Initialize once everything is loaded
+      if (unicornContainer && !sceneReady) {
+        sceneReady = true;
+        collectAnimatables();
+        dbg('Scene ready! Everything alive!');
+      }
+
+      if (!sceneReady) {
+        controls.update();
+        renderer.render(scene, camera);
+        return;
+      }
+
+      // ---- Move unicorn based on held keys ----
+      if (unicornContainer) {
+        const SPEED = 5.0 * delta;   // walk/fly speed
+        const FLY_SPEED = 4.0 * delta;
+        let moveX = 0, moveZ = 0, moveY = 0;
+
+        if (keysHeld['ArrowUp'] || keysHeld['w'] || keysHeld['W'])    moveZ -= SPEED;
+        if (keysHeld['ArrowDown'] || keysHeld['s'] || keysHeld['S'])  moveZ += SPEED;
+        if (keysHeld['ArrowLeft'] || keysHeld['a'] || keysHeld['A'])  moveX -= SPEED;
+        if (keysHeld['ArrowRight'] || keysHeld['d'] || keysHeld['D']) moveX += SPEED;
+        if (keysHeld[' '])      moveY += FLY_SPEED;  // Space = fly up
+        if (keysHeld['Shift'])  moveY -= FLY_SPEED;  // Shift = fly down
+
+        if (moveX !== 0 || moveZ !== 0 || moveY !== 0) {
+          // Move relative to camera direction (so "forward" = toward where camera looks)
+          const camDir = new THREE.Vector3();
+          camera.getWorldDirection(camDir);
+          camDir.y = 0;
+          camDir.normalize();
+
+          const camRight = new THREE.Vector3();
+          camRight.crossVectors(camDir, new THREE.Vector3(0, 1, 0)).normalize();
+
+          unicornContainer.position.addScaledVector(camDir, -moveZ);
+          unicornContainer.position.addScaledVector(camRight, moveX);
+          unicornContainer.position.y += moveY;
+
+          // Rotate unicorn to face movement direction
+          if (moveX !== 0 || moveZ !== 0) {
+            const moveDir = new THREE.Vector3();
+            moveDir.addScaledVector(camDir, -moveZ);
+            moveDir.addScaledVector(camRight, moveX);
+            moveDir.normalize();
+            const angle = Math.atan2(moveDir.x, moveDir.z);
+            unicornContainer.rotation.y = angle;
+          }
+        }
+
+        // Gentle floating bob
+        unicornContainer.position.y += Math.sin(elapsed * 1.5) * 0.002;
+      }
+
+      // ---- Camera follows unicorn (orbit mode) ----
+      if (unicornContainer) {
+        const target = unicornContainer.position.clone().add(new THREE.Vector3(0, 0.8, 0));
+        controls.target.lerp(target, 0.05);
+      }
+      controls.update();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Pause auto-rotate when user grabs, resume after idle
+    let orbitTimeout = null;
+    controls.addEventListener('start', () => {
+      controls.autoRotate = false;
+      if (orbitTimeout) clearTimeout(orbitTimeout);
+    });
+    controls.addEventListener('end', () => {
+      orbitTimeout = setTimeout(() => { controls.autoRotate = true; }, 6000);
+    });
+
+    // ======================== MOVEMENT CONTROLS ========================
+    // Track which keys are currently held down
+    const keysHeld = {};
+    let hintFaded = false;
+
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      keysHeld[e.key] = true;
+
+      // Fade out movement hint on first move
+      if (!hintFaded) {
+        const moveKeys = ['w','W','a','A','s','S','d','D','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift'];
+        if (moveKeys.includes(e.key)) {
+          hintFaded = true;
+          const hint = document.getElementById('moveHint');
+          if (hint) hint.classList.add('faded');
+        }
+      }
+
+      // Single-press actions
+      if (e.key === '+' || e.key === '=') unicornModel && unicornModel.scale.multiplyScalar(1.1);
+      if (e.key === '-' || e.key === '_') unicornModel && unicornModel.scale.multiplyScalar(0.9);
+    });
+    window.addEventListener('keyup', (e) => {
+      keysHeld[e.key] = false;
+      if (e.key === 'Shift') keysHeld['Shift'] = false;
+    });
+    window.addEventListener('blur', () => {
+      Object.keys(keysHeld).forEach(k => keysHeld[k] = false);
+    });
+
+    // ======================== RESIZE ========================
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ======================== WALLET + JOIN ========================
+    let myWallet = localStorage.getItem('pippin_wallet') || '';
+    let myParticipantId = null;
+
+    const walletInput = document.getElementById('walletInput');
+    const walletJoin = document.getElementById('walletJoin');
+    const walletStatus = document.getElementById('walletStatus');
+    const walletPanel = document.getElementById('walletPanel');
+
+    if (myWallet) {
+      walletInput.value = myWallet;
+      joinWithWallet(myWallet);
+    }
+
+    walletJoin.addEventListener('click', () => {
+      const w = walletInput.value.trim();
+      if (w.length < 20) { walletStatus.textContent = 'アドレスが短すぎます'; return; }
+      joinWithWallet(w);
+    });
+
+    async function joinWithWallet(wallet) {
+      try {
+        const res = await fetch('/api/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet, name: 'explorer' }),
+        });
+        const data = await res.json();
+        if (data.id) {
+          myWallet = wallet;
+          myParticipantId = data.id;
+          localStorage.setItem('pippin_wallet', wallet);
+          walletStatus.textContent = '参加済み ✓ (' + wallet.slice(0, 6) + '...)';
+          walletPanel.classList.add('joined');
+          walletJoin.style.display = 'none';
+          walletInput.disabled = true;
+          // Show task panel
+          document.getElementById('taskPanel').classList.add('show');
+          loadNewTask();
+          startTaskAsking();
+        }
+      } catch (e) {
+        walletStatus.textContent = 'エラー: ' + e.message;
+      }
+    }
+
+    // ======================== TASK SYSTEM ========================
+    let currentTask = null;
+    const taskText = document.getElementById('taskText');
+    const taskInputArea = document.getElementById('taskInputArea');
+    const taskSubmit = document.getElementById('taskSubmit');
+    const taskSkip = document.getElementById('taskSkip');
+    const taskReward = document.getElementById('taskReward');
+
+    async function loadNewTask() {
+      try {
+        const res = await fetch('/api/task');
+        currentTask = await res.json();
+        taskText.innerHTML = currentTask.jp + '<br><span class="task-en">' + currentTask.en + '</span>';
+        taskReward.textContent = '';
+
+        // Show appropriate input
+        taskInputArea.innerHTML = '';
+        taskSubmit.style.display = 'inline-block';
+
+        if (currentTask.type === 'draw') {
+          taskSubmit.textContent = '描く (draw)';
+          taskSubmit.onclick = openDrawCanvas;
+        } else if (currentTask.type === 'dance' || currentTask.type === 'explore') {
+          taskSubmit.textContent = 'できた！ (done!)';
+          taskSubmit.onclick = () => completeTask('');
+        } else {
+          // Text input tasks (haiku, compliment, story)
+          taskInputArea.innerHTML = '<textarea class="task-input" id="taskResponse" rows="2" placeholder="ここに書いて..."></textarea>';
+          taskSubmit.textContent = '送る (submit)';
+          taskSubmit.onclick = () => {
+            const resp = document.getElementById('taskResponse').value.trim();
+            if (!resp) return;
+            completeTask(resp);
+          };
+        }
+      } catch (e) {
+        taskText.textContent = 'タスクの読み込みに失敗しました';
+      }
+    }
+
+    async function completeTask(response, imageData) {
+      if (!myWallet || !currentTask) return;
+      taskSubmit.disabled = true;
+      taskReward.textContent = '送信中...';
+
+      try {
+        const res = await fetch('/api/task/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet: myWallet,
+            task_type: currentTask.type,
+            task_prompt: currentTask.jp,
+            task_response: response,
+            image_data: imageData || null,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          taskReward.textContent = '+' + (data.reward || 10) + ' happiness! ピピンが喜んでいます！';
+          // Update happiness meter
+          updateHappiness(data.happiness);
+
+          // Ask Pippin AI to react to what the user actually submitted
+          try {
+            const reactRes = await fetch('/api/task/react', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                task_type: currentTask.type,
+                task_prompt: currentTask.jp,
+                task_response: response || '(completed)',
+              }),
+            });
+            const reactData = await reactRes.json();
+            pippinSay(reactData.jp, reactData.en);
+          } catch (_) {
+            // Fallback if AI reaction fails
+            pippinSay('やったー！ありがとう！嬉しい！', 'yay! thank you! so happy!');
+          }
+
+          // Load next task after a moment
+          setTimeout(() => { loadNewTask(); taskSubmit.disabled = false; }, 4000);
+        } else {
+          taskReward.textContent = 'エラー: ' + (data.error || 'unknown');
+          taskSubmit.disabled = false;
+        }
+      } catch (e) {
+        taskReward.textContent = 'エラー: ' + e.message;
+        taskSubmit.disabled = false;
+      }
+    }
+
+    taskSkip.addEventListener('click', loadNewTask);
+
+    function updateHappiness(value) {
+      const fill = document.getElementById('miniHappyFill');
+      if (fill) fill.style.width = value + '%';
+      const face = document.getElementById('miniHappyFace');
+      if (face) {
+        if (value >= 80) face.textContent = '😄';
+        else if (value >= 50) face.textContent = '😊';
+        else if (value >= 30) face.textContent = '😐';
+        else face.textContent = '😢';
+      }
+    }
+
+    // ======================== DRAWING CANVAS ========================
+    const canvasOverlay = document.getElementById('canvasOverlay');
+    const drawCanvas = document.getElementById('drawCanvas');
+    const drawCtx = drawCanvas.getContext('2d');
+    let drawColor = '#000';
+    let isDrawing = false;
+
+    function openDrawCanvas() {
+      canvasOverlay.classList.add('show');
+      document.getElementById('canvasPrompt').innerHTML =
+        currentTask.jp + '<span class="canvas-prompt-en">' + currentTask.en + '</span>';
+      // Clear canvas
+      drawCtx.fillStyle = '#fff';
+      drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+
+    // Color picker
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        drawColor = btn.dataset.color;
+      });
+    });
+
+    // Drawing events
+    function getDrawPos(e) {
+      const rect = drawCanvas.getBoundingClientRect();
+      const touch = e.touches ? e.touches[0] : e;
+      return {
+        x: (touch.clientX - rect.left) * (drawCanvas.width / rect.width),
+        y: (touch.clientY - rect.top) * (drawCanvas.height / rect.height),
+      };
+    }
+
+    drawCanvas.addEventListener('mousedown', (e) => { isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
+    drawCanvas.addEventListener('mousemove', (e) => { if (!isDrawing) return; const p = getDrawPos(e); drawCtx.lineWidth = 3; drawCtx.lineCap = 'round'; drawCtx.strokeStyle = drawColor; drawCtx.lineTo(p.x, p.y); drawCtx.stroke(); });
+    drawCanvas.addEventListener('mouseup', () => { isDrawing = false; });
+    drawCanvas.addEventListener('mouseleave', () => { isDrawing = false; });
+
+    // Touch support
+    drawCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
+    drawCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDrawing) return; const p = getDrawPos(e); drawCtx.lineWidth = 3; drawCtx.lineCap = 'round'; drawCtx.strokeStyle = drawColor; drawCtx.lineTo(p.x, p.y); drawCtx.stroke(); });
+    drawCanvas.addEventListener('touchend', () => { isDrawing = false; });
+
+    document.getElementById('canvasClear').addEventListener('click', () => {
+      drawCtx.fillStyle = '#fff';
+      drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+    });
+
+    document.getElementById('canvasSubmit').addEventListener('click', () => {
+      const imageData = drawCanvas.toDataURL('image/png');
+      canvasOverlay.classList.remove('show');
+      completeTask('drawing', imageData);
+    });
+
+    document.getElementById('canvasClose').addEventListener('click', () => {
+      canvasOverlay.classList.remove('show');
+    });
+
+    // ======================== GLOBAL STATE + LIVE TIMER ========================
+    let timerEndMs = Date.now() + 3600000; // fallback 1hr
+
+    async function pollGlobalState() {
+      try {
+        const res = await fetch('/api/state');
+        const state = await res.json();
+        updateHappiness(state.happiness);
+
+        if (state.timer_end) {
+          timerEndMs = new Date(state.timer_end).getTime();
+        }
+
+        if (state.current_life) {
+          const badge = document.querySelector('.life-badge');
+          if (badge) badge.textContent = 'Life #' + state.current_life;
+        }
+      } catch (e) { /* silent */ }
+    }
+
+    // Live countdown every second
+    setInterval(() => {
+      const remaining = Math.max(0, timerEndMs - Date.now());
+      const h = Math.floor(remaining / 3600000);
+      const m = Math.floor((remaining % 3600000) / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      document.getElementById('miniTimer').textContent =
+        String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+
+      if (remaining <= 0) {
+        document.getElementById('miniTimer').textContent = 'RAFFLE!';
+      }
+    }, 1000);
+
+    // Sync with server every 30 seconds
+    setInterval(pollGlobalState, 30000);
+
+    // Initial poll after entering
+    document.getElementById('introEnter').addEventListener('click', () => {
+      setTimeout(pollGlobalState, 2000);
+    });
+
+    // ======================== PIPPIN PROACTIVELY ASKS TASKS ========================
+    const taskAskMessages = [
+      { jp: 'ねえねえ！お仕事あるんだけど、手伝ってくれない？タスクパネル見てみて！', en: 'hey hey! I have a job for you, wanna help? check the task panel!' },
+      { jp: 'ちょっとお願いがあるの！右上のパネルにタスクが出てるよ！', en: 'I have a favor to ask! there\'s a task in the panel on the right!' },
+      { jp: 'なんか描いてほしいな～！タスク見てくれる？', en: 'I want you to draw something! check the tasks?' },
+      { jp: 'タスクやってくれたら幸せ度が上がるよ！お願い！', en: 'if you do a task my happiness goes up! please!' },
+      { jp: 'ひまなら右上のタスクやってみて！ラッフルにもエントリーされるよ！', en: 'if you\'re free try the tasks top-right! you get a raffle entry too!' },
+      { jp: 'お絵描きしない？キャンバス開けるよ！タスクパネルから！', en: 'wanna draw? you can open the canvas! from the task panel!' },
+    ];
+
+    // After joining, Pippin starts asking for tasks every ~40 seconds
+    let taskAskTimer = null;
+    function startTaskAsking() {
+      if (taskAskTimer) return;
+      // First ask after 15 seconds
+      setTimeout(() => {
+        if (!myWallet) return;
+        const msg = taskAskMessages[0];
+        pippinSay(msg.jp, msg.en);
+      }, 15000);
+
+      // Then every 45 seconds
+      let askIdx = 1;
+      taskAskTimer = setInterval(() => {
+        if (isSpeaking || !myWallet || !hasEntered) return;
+        const msg = taskAskMessages[askIdx % taskAskMessages.length];
+        pippinSay(msg.jp, msg.en);
+        askIdx++;
+      }, 45000);
+    }
+
+    // Also re-trigger task asking if wallet was persisted from prior session
+    if (myWallet) {
+      document.getElementById('taskPanel').classList.add('show');
+      loadNewTask();
+      startTaskAsking();
+    }
+  </script>
+</body>
+</html>
