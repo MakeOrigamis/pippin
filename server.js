@@ -724,7 +724,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
 
   // ======================== STATIC FILE SERVING ========================
   let filePath = '.' + decodeURIComponent(req.url.split('?')[0]);
-  if (filePath === './') filePath = './index.html';
+  if (filePath === './') filePath = './pippin3d.html';
 
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
