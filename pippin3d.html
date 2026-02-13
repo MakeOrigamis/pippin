@@ -2023,11 +2023,20 @@
           // Everything else keeps rotation/scale but NOT translation.
           // Only the bathtub boat should move through the scene.
           const filteredTracks = clip.tracks.filter(track => {
-            const isTranslation = track.name.endsWith('.position');
-            if (!isTranslation) return true; // keep all rotation/scale tracks
-
             const nodeName = track.name.split('.')[0];
+            const isTranslation = track.name.endsWith('.position');
+            const isRotation = track.name.endsWith('.quaternion');
 
+            // BLOCK rotation AND translation on orbit/root Dummy nodes
+            // These spin the whole scene and cause the headache-inducing rotation
+            if (nodeName.startsWith('Dummy') && !nodeName.startsWith('Dummy018')) return false;
+            if (nodeName.startsWith('CAT_') || nodeName.startsWith('FlowCAT') || nodeName.startsWith('CATWORM')) return false;
+            if (nodeName.includes('Smoke')) return false;
+
+            // Keep rotation/scale tracks for everything else (dancing limbs, wings, etc.)
+            if (!isTranslation) return true;
+
+            // For translation tracks, whitelist only specific nodes:
             // 1. Bathtub + parent Dummy018 (boat floats down river)
             if (nodeName === 'Dummy018' || nodeName.toLowerCase().includes('bathtub') ||
                 nodeName.includes('Object005')) return true;
@@ -2041,7 +2050,7 @@
             // 4. PastyFly wings
             if (nodeName.includes('PastyFly_wing')) return true;
 
-            // BLOCK everything else (FlowCAT, CATWORM, Smoke, Dummy, CAT_, etc.)
+            // BLOCK everything else
             return false;
           });
 
@@ -2170,16 +2179,20 @@
           const charMixer = new THREE.AnimationMixer(charScene);
           sceneMixers.push(charMixer);
           gltf.animations.forEach((clip, i) => {
-            // Same whitelist filter as landscape
+            // Same filter as landscape: block Dummy orbit rotations + translations
             const filteredTracks = clip.tracks.filter(track => {
-              const isTranslation = track.name.endsWith('.position');
-              if (!isTranslation) return true;
               const nodeName = track.name.split('.')[0];
+              const isTranslation = track.name.endsWith('.position');
+              // Block orbit/root Dummy nodes entirely (rotation + translation)
+              if (nodeName.startsWith('Dummy') && !nodeName.startsWith('Dummy018')) return false;
+              if (nodeName.startsWith('CAT_') || nodeName.startsWith('FlowCAT') || nodeName.startsWith('CATWORM')) return false;
+              if (nodeName.includes('Smoke')) return false;
+              if (!isTranslation) return true;
               if (nodeName === 'Dummy018' || nodeName.toLowerCase().includes('bathtub')) return true;
               if (nodeName.startsWith('CATRig')) return true;
               if (nodeName.startsWith('Pastisympaty_')) return true;
               if (nodeName.includes('PastyFly_wing')) return true;
-              return false; // block all other translations
+              return false;
             });
             const newClip = new THREE.AnimationClip(clip.name, clip.duration, filteredTracks);
             const removed = clip.tracks.length - filteredTracks.length;
