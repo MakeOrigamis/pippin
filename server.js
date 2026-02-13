@@ -1206,7 +1206,7 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
         const candidates = PUZZLE_TEMPLATES.filter(t => t.type === nextType);
         const tmpl = candidates[Math.floor(Math.random() * candidates.length)];
         // Store extra metadata in contributions JSONB as first entry with type "__meta"
-        const meta = { __meta: true, grid: tmpl.grid || null, subject: tmpl.subject || null, parts: tmpl.parts || null, clues: tmpl.clues || null, startWord: tmpl.startWord || null, scenario: tmpl.scenario || null };
+        const meta = { __meta: true, grid: tmpl.grid || null, subject: tmpl.subject || null, parts: tmpl.parts || null, clues: tmpl.clues || null, startWord: tmpl.startWord || null, scenario: tmpl.scenario || null, topic: tmpl.topic || null, rule: tmpl.rule || null, jobs: tmpl.jobs || null };
         const { data: newPuzzle } = await supabase.from('group_puzzles').insert({
           puzzle_type: tmpl.type,
           prompt_jp: tmpl.jp,
@@ -1273,6 +1273,109 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
           res.end(JSON.stringify({ error: 'slot taken', contributions: allEntries }));
           return;
         }
+      }
+
+      // ---- AI VERIFICATION for puzzle contributions ----
+      const isDrawPuzzleType = puzzle.puzzle_type === 'collab_draw' || puzzle.puzzle_type === 'exquisite_corpse';
+      let puzzleApproved = true;
+      let puzzleReaction = '';
+
+      if (ANTHROPIC_API_KEY && !isDrawPuzzleType) {
+        // Build context for the AI judge based on puzzle type
+        let judgeContext = '';
+        const ptype = puzzle.puzzle_type;
+
+        if (ptype === 'research' && meta.jobs) {
+          const jobText = meta.jobs[slot !== undefined ? slot : existing.length] || 'answer the research question';
+          judgeContext = `This is a RESEARCH mission about "${meta.topic || ''}". The user's specific task was: "${jobText}". Check if the answer is factually plausible and shows real effort/knowledge. Reject if it's gibberish, completely wrong, or lazy one-word non-answers.`;
+        } else if (ptype === 'trivia' && meta.jobs) {
+          const jobText = meta.jobs[slot !== undefined ? slot : existing.length] || 'answer the trivia question';
+          judgeContext = `This is a TRIVIA question: "${jobText}". Check if the answer is correct or at least a reasonable attempt. Reject obvious nonsense or completely wrong answers.`;
+        } else if (ptype === 'riddle' && meta.clues) {
+          const clueText = meta.clues[slot !== undefined ? slot : existing.length] || 'solve the riddle';
+          judgeContext = `This is a RIDDLE: "${clueText}". Check if the answer is correct or a reasonable guess. Be lenient — close answers are fine.`;
+        } else if (ptype === 'debate') {
+          judgeContext = `This is a DEBATE on: "${meta.topic || ''}". Rule: "${meta.rule || 'give a thoughtful opinion'}". Check if the user gave a real opinion with at least some reasoning. Reject empty, off-topic, or zero-effort answers (single word, random text). Accept any genuine opinion even if you disagree.`;
+        } else if (ptype === 'story') {
+          judgeContext = `This is a COLLABORATIVE STORY. The user is adding a sentence to the story: "${puzzle.prompt_en}". Check if it's a real sentence that continues the story. Reject gibberish or completely off-topic spam. Be lenient — creativity is welcome!`;
+        } else if (ptype === 'word_chain') {
+          const prevWord = existing.length > 0 ? existing[existing.length - 1].response : (meta.startWord || 'Start');
+          const lastLetter = prevWord.trim().slice(-1).toLowerCase();
+          judgeContext = `This is a WORD CHAIN game. The previous word was "${prevWord}". The new word must start with the letter "${lastLetter.toUpperCase()}". Check if the submission is a real English word that starts with "${lastLetter}". Reject if it doesn't start with the right letter, or isn't a real word.`;
+        } else if (ptype === 'caption') {
+          judgeContext = `This is a CAPTION CONTEST for the scenario: "${meta.scenario || ''}". Check if the user wrote a real caption (at least a few words). Reject gibberish or completely empty/lazy answers. Be lenient — humor is subjective!`;
+        }
+
+        if (judgeContext) {
+          try {
+            const judgePrompt = `You are Pippin (ピピン), a kawaii unicorn who judges group puzzle contributions. Be fair but firm.
+
+${judgeContext}
+
+JUDGE the submission and reply with ONLY valid JSON:
+{"approved": true/false, "reason": "brief explanation in cute English"}
+
+If APPROVED: brief praise (max 10 words).
+If REJECTED: explain what's wrong and what they should do instead.`;
+
+            const postData = JSON.stringify({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 150,
+              system: judgePrompt,
+              messages: [{ role: 'user', content: `Submission: "${(response || '').substring(0, 500)}"` }],
+            });
+
+            const verdict = await new Promise((resolve) => {
+              const timer = setTimeout(() => resolve({ approved: true, reason: 'auto-approved (timeout)' }), 10000);
+              const proxyReq = https.request({
+                hostname: 'api.anthropic.com',
+                path: '/v1/messages',
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-api-key': ANTHROPIC_API_KEY,
+                  'anthropic-version': '2023-06-01',
+                  'Content-Length': Buffer.byteLength(postData),
+                }
+              }, (proxyRes) => {
+                let body = '';
+                proxyRes.on('data', d => body += d);
+                proxyRes.on('end', () => {
+                  clearTimeout(timer);
+                  try {
+                    const parsed = JSON.parse(body);
+                    const text = parsed.content?.[0]?.text || '';
+                    const jsonMatch = text.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      resolve(JSON.parse(jsonMatch[0]));
+                    } else {
+                      resolve({ approved: true, reason: 'ok' });
+                    }
+                  } catch(_) {
+                    resolve({ approved: true, reason: 'ok' });
+                  }
+                });
+              });
+              proxyReq.on('error', () => { clearTimeout(timer); resolve({ approved: true, reason: 'auto-approved' }); });
+              proxyReq.write(postData);
+              proxyReq.end();
+            });
+
+            puzzleApproved = verdict.approved !== false;
+            puzzleReaction = verdict.reason || '';
+            console.log(`Puzzle AI Judge: ${ptype} contribution ${puzzleApproved ? 'APPROVED' : 'REJECTED'}: ${puzzleReaction}`);
+          } catch (e) {
+            console.warn('Puzzle AI judge error, auto-approving:', e.message);
+            puzzleApproved = true;
+          }
+        }
+      }
+
+      // If rejected by AI, send back rejection without saving
+      if (!puzzleApproved) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'rejected', rejected: true, reason: puzzleReaction, contributions: allEntries }));
+        return;
       }
 
       // Build contribution
