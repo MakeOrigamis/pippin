@@ -1158,6 +1158,35 @@
       letter-spacing: 0.5px;
     }
 
+    /* Leaderboard tabs */
+    .lb-tab {
+      padding: 0.3rem 0.8rem; font-size: 0.65rem; border-radius: 6px; cursor: pointer;
+      border: 1px solid rgba(232,213,196,0.15); background: rgba(232,213,196,0.05);
+      color: #E8D5C4; font-family: 'Baloo 2', cursive; transition: all 0.2s;
+    }
+    .lb-tab:hover { background: rgba(232,213,196,0.1); }
+    .lb-tab.active { background: rgba(232,160,191,0.2); border-color: #e8a0bf; color: #e8a0bf; }
+
+    /* Clickable player names */
+    .player-link { cursor: pointer; color: #e8a0bf; transition: opacity 0.2s; }
+    .player-link:hover { opacity: 0.7; text-decoration: underline; }
+
+    /* Profile popup */
+    .profile-header { text-align: center; margin-bottom: 0.8rem; }
+    .profile-name { font-size: 1.2rem; color: #e8a0bf; font-family: 'Baloo 2', cursive; }
+    .profile-wallet { font-size: 0.5rem; color: rgba(232,213,196,0.4); word-break: break-all; margin-top: 2px; }
+    .profile-joined { font-size: 0.55rem; color: rgba(232,213,196,0.5); margin-top: 4px; }
+    .profile-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 0.6rem 0; }
+    .profile-stat {
+      text-align: center; padding: 0.5rem 0.3rem; border-radius: 8px;
+      background: rgba(232,213,196,0.04); border: 1px solid rgba(232,213,196,0.08);
+    }
+    .profile-stat-val { font-size: 1.1rem; color: #F4D06F; font-family: 'Baloo 2', cursive; font-weight: 700; }
+    .profile-stat-label { font-size: 0.45rem; color: rgba(232,213,196,0.5); text-transform: uppercase; }
+    .profile-breakdown { margin-top: 0.5rem; }
+    .profile-breakdown-title { font-size: 0.6rem; color: #c4956a; margin-bottom: 4px; font-family: 'Baloo 2', cursive; }
+    .profile-breakdown-row { display: flex; justify-content: space-between; font-size: 0.5rem; color: #E8D5C4; padding: 2px 0; border-bottom: 1px solid rgba(232,213,196,0.05); }
+
     /* ======================== INTRO HOW-TO ======================== */
     .intro-howto {
       margin-top: 1.5rem;
@@ -1601,11 +1630,23 @@
   <div class="ranking-overlay" id="rankingOverlay">
     <div class="ranking-popup">
       <button class="ranking-close" id="rankingClose">&times;</button>
-      <h3>&#127942; ランキング / Leaderboard</h3>
+      <h3>&#127942; Leaderboard</h3>
+      <div style="display:flex;gap:4px;margin-bottom:8px;">
+        <button class="lb-tab active" id="lbTabLife" onclick="switchLeaderboard('life')">This Life</button>
+        <button class="lb-tab" id="lbTabGlobal" onclick="switchLeaderboard('global')">All Time</button>
+      </div>
       <div class="ranking-meta" id="rankingMeta"></div>
       <div class="ranking-list" id="rankingList">
         <div class="ranking-loading">読み込み中...</div>
       </div>
+    </div>
+  </div>
+
+  <!-- Player Profile Popup -->
+  <div class="ranking-overlay" id="profileOverlay" style="display:none;">
+    <div class="ranking-popup" style="max-width:420px;">
+      <button class="ranking-close" onclick="document.getElementById('profileOverlay').style.display='none'">&times;</button>
+      <div id="profileContent"><div class="ranking-loading">Loading...</div></div>
     </div>
   </div>
 
@@ -2709,9 +2750,11 @@
     }
 
     // ======================== RANKING POPUP ========================
+    let currentLbScope = 'life';
+
     document.getElementById('rankingBtn').addEventListener('click', () => {
       document.getElementById('rankingOverlay').classList.add('show');
-      loadRanking();
+      loadRanking(currentLbScope);
     });
     document.getElementById('rankingClose').addEventListener('click', () => {
       document.getElementById('rankingOverlay').classList.remove('show');
@@ -2721,40 +2764,134 @@
         document.getElementById('rankingOverlay').classList.remove('show');
       }
     });
+    document.getElementById('profileOverlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('profileOverlay')) {
+        document.getElementById('profileOverlay').style.display = 'none';
+      }
+    });
 
-    async function loadRanking() {
+    window.switchLeaderboard = function(scope) {
+      currentLbScope = scope;
+      document.getElementById('lbTabLife').classList.toggle('active', scope === 'life');
+      document.getElementById('lbTabGlobal').classList.toggle('active', scope === 'global');
+      loadRanking(scope);
+    };
+
+    async function loadRanking(scope) {
+      scope = scope || 'life';
       const listEl = document.getElementById('rankingList');
       const metaEl = document.getElementById('rankingMeta');
-      listEl.innerHTML = '<div class="ranking-loading">読み込み中...</div>';
+      listEl.innerHTML = '<div class="ranking-loading">Loading...</div>';
       metaEl.textContent = '';
 
       try {
-        const res = await fetch('/api/ranking');
+        const res = await fetch(`/api/ranking?scope=${scope}`);
         const data = await res.json();
 
-        metaEl.textContent = `Life #${data.life || 1} · ${data.total || 0} participants`;
+        if (scope === 'global') {
+          metaEl.textContent = `All Time · ${data.total || 0} players`;
+        } else {
+          metaEl.textContent = `Life #${data.life || 1} · ${data.players?.length || 0} active players`;
+        }
 
         if (!data.players || data.players.length === 0) {
-          listEl.innerHTML = '<div class="ranking-loading">まだ参加者がいません / No participants yet</div>';
+          listEl.innerHTML = '<div class="ranking-loading">No participants yet</div>';
           return;
         }
 
         listEl.innerHTML = data.players.map(p => {
           const isMe = myWallet && p.wallet === myWallet;
-          return `<div class="rank-row${isMe ? ' me' : ''}">
-            <div class="rank-pos">${p.rank <= 3 ? ['🥇','🥈','🥉'][p.rank-1] : '#' + p.rank}</div>
-            <div class="rank-wallet" style="word-break:break-all;font-size:0.6rem">${p.wallet}</div>
-            <div class="rank-stats">
+          const medal = p.rank <= 3 ? ['🥇','🥈','🥉'][p.rank-1] : '#' + p.rank;
+          const nameHtml = `<span class="player-link" onclick="showProfile('${p.wallet}')">${p.name}</span>`;
+          const walletShort = p.wallet.substring(0, 6) + '...' + p.wallet.substring(p.wallet.length - 4);
+
+          let statsHtml = '';
+          if (scope === 'global') {
+            statsHtml = `
+              <div class="rank-stat"><div class="rank-stat-val">${p.tasks}</div><div class="rank-stat-label">tasks</div></div>
+              <div class="rank-stat"><div class="rank-stat-val">${p.drawings || 0}</div><div class="rank-stat-label">draws</div></div>
+              <div class="rank-stat"><div class="rank-stat-val">${p.happiness}</div><div class="rank-stat-label">happy</div></div>
+              <div class="rank-stat"><div class="rank-stat-val">${p.entries}</div><div class="rank-stat-label">entries</div></div>`;
+          } else {
+            statsHtml = `
               <div class="rank-stat"><div class="rank-stat-val">${p.tasks}</div><div class="rank-stat-label">tasks</div></div>
               <div class="rank-stat"><div class="rank-stat-val">${p.happiness}</div><div class="rank-stat-label">happy</div></div>
-              <div class="rank-stat"><div class="rank-stat-val">${p.entries}</div><div class="rank-stat-label">entries</div></div>
+              <div class="rank-stat"><div class="rank-stat-val">${p.entries}</div><div class="rank-stat-label">entries</div></div>`;
+          }
+
+          return `<div class="rank-row${isMe ? ' me' : ''}">
+            <div class="rank-pos">${medal}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.7rem;">${nameHtml}</div>
+              <div style="font-size:0.4rem;color:rgba(232,213,196,0.3);">${walletShort}</div>
             </div>
+            <div class="rank-stats">${statsHtml}</div>
           </div>`;
         }).join('');
       } catch (e) {
-        listEl.innerHTML = '<div class="ranking-loading">エラー / Error loading ranking</div>';
+        listEl.innerHTML = '<div class="ranking-loading">Error loading ranking</div>';
       }
     }
+
+    // ======================== PLAYER PROFILE ========================
+    window.showProfile = async function(wallet) {
+      const overlay = document.getElementById('profileOverlay');
+      const content = document.getElementById('profileContent');
+      overlay.style.display = 'flex';
+      content.innerHTML = '<div class="ranking-loading">Loading profile...</div>';
+
+      try {
+        const res = await fetch('/api/profile/' + encodeURIComponent(wallet));
+        const data = await res.json();
+        if (data.error) { content.innerHTML = '<div class="ranking-loading">Player not found</div>'; return; }
+
+        const s = data.stats;
+        const joined = new Date(data.joined).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+
+        // Task type breakdown
+        let typeBreakdown = '';
+        if (s.tasksByType && Object.keys(s.tasksByType).length > 0) {
+          const typeEmojis = { draw: '🎨', haiku: '📝', story: '📖', compliment: '💕', dance: '💃', explore: '🗺️', trivia: '🧠', joke: '😂', wish: '⭐', opinion: '🗣️' };
+          typeBreakdown = Object.entries(s.tasksByType)
+            .sort((a, b) => b[1] - a[1])
+            .map(([type, count]) => `<div class="profile-breakdown-row"><span>${typeEmojis[type] || '📋'} ${type}</span><span style="color:#F4D06F;">${count}</span></div>`)
+            .join('');
+        }
+
+        // Life breakdown
+        let lifeBreakdown = '';
+        if (s.entriesByLife && Object.keys(s.entriesByLife).length > 0) {
+          lifeBreakdown = Object.entries(s.entriesByLife)
+            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+            .map(([life, count]) => `<div class="profile-breakdown-row"><span>Life #${life}</span><span style="color:#F4D06F;">${count} entries</span></div>`)
+            .join('');
+        }
+
+        content.innerHTML = `
+          <div class="profile-header">
+            <div class="profile-name">🦄 ${data.name}</div>
+            <div class="profile-wallet">${data.wallet}</div>
+            <div class="profile-joined">Joined: ${joined}</div>
+          </div>
+          <div class="profile-stats">
+            <div class="profile-stat"><div class="profile-stat-val">${s.totalTasks}</div><div class="profile-stat-label">Tasks</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">${s.totalDrawings}</div><div class="profile-stat-label">Drawings</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">${s.totalLikes}</div><div class="profile-stat-label">Likes</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">${s.totalHappiness}</div><div class="profile-stat-label">Happiness</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">${s.puzzleContribs}</div><div class="profile-stat-label">Puzzles</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">${s.chatMessages}</div><div class="profile-stat-label">Chats</div></div>
+          </div>
+          <div class="profile-stats" style="grid-template-columns:1fr 1fr;">
+            <div class="profile-stat"><div class="profile-stat-val">${s.totalEntries}</div><div class="profile-stat-label">Raffle Entries</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">${Object.keys(s.entriesByLife || {}).length}</div><div class="profile-stat-label">Lives Played</div></div>
+          </div>
+          ${typeBreakdown ? `<div class="profile-breakdown"><div class="profile-breakdown-title">Tasks by Type</div>${typeBreakdown}</div>` : ''}
+          ${lifeBreakdown ? `<div class="profile-breakdown"><div class="profile-breakdown-title">Activity by Life</div>${lifeBreakdown}</div>` : ''}
+        `;
+      } catch (e) {
+        content.innerHTML = '<div class="ranking-loading">Error loading profile</div>';
+      }
+    };
 
     // ======================== INTRO + MUSIC ========================
     const bgMusic = document.getElementById('bgMusic');
@@ -2929,12 +3066,13 @@
     function renderChatMessage(msg) {
       const div = document.createElement('div');
       div.className = `gchat-msg type-${msg.message_type || 'chat'}`;
+      const nameClick = msg.wallet_address ? `class="player-link" onclick="showProfile('${msg.wallet_address}')"` : '';
       if (msg.message_type === 'activity') {
-        div.innerHTML = `<span class="gchat-time">${formatChatTime(msg.created_at)}</span> ${msg.display_name || 'explorer'} ${msg.message}`;
+        div.innerHTML = `<span class="gchat-time">${formatChatTime(msg.created_at)}</span> <span ${nameClick}>${msg.display_name || 'explorer'}</span> ${msg.message}`;
       } else if (msg.message_type === 'pippin') {
         div.innerHTML = `<span class="gchat-name">🦄 Pippin</span> <span class="gchat-time">${formatChatTime(msg.created_at)}</span><br>${msg.message}`;
       } else {
-        div.innerHTML = `<span class="gchat-name">${msg.display_name || 'explorer'}</span> <span class="gchat-time">${formatChatTime(msg.created_at)}</span><br>${msg.message}`;
+        div.innerHTML = `<span class="gchat-name" ${nameClick}>${msg.display_name || 'explorer'}</span> <span class="gchat-time">${formatChatTime(msg.created_at)}</span><br>${msg.message}`;
       }
       return div;
     }

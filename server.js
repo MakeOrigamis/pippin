@@ -1496,86 +1496,187 @@ If REJECTED: explain what's wrong and what they should do instead.`;
     return;
   }
 
+  // ======================== PLAYER PROFILE ========================
+  if (req.url.startsWith('/api/profile/') && req.method === 'GET') {
+    const wallet = decodeURIComponent(req.url.split('/api/profile/')[1]);
+    if (!supabase || !wallet) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+      return;
+    }
+    try {
+      const { data: participant } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('wallet_address', wallet)
+        .single();
+      if (!participant) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'not found' }));
+        return;
+      }
+
+      // Total tasks completed (all time)
+      const { count: totalTasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true })
+        .eq('participant_id', participant.id).eq('completed', true);
+
+      // Tasks by type
+      const { data: tasksByType } = await supabase.from('tasks').select('task_type')
+        .eq('participant_id', participant.id).eq('completed', true);
+      const typeCounts = {};
+      (tasksByType || []).forEach(t => { typeCounts[t.task_type] = (typeCounts[t.task_type] || 0) + 1; });
+
+      // Total drawings
+      const { count: totalDrawings } = await supabase.from('drawings').select('*', { count: 'exact', head: true })
+        .eq('participant_id', participant.id);
+
+      // Total drawing likes received
+      const { data: drawingsData } = await supabase.from('drawings').select('likes')
+        .eq('participant_id', participant.id);
+      const totalLikes = (drawingsData || []).reduce((s, d) => s + (d.likes || 0), 0);
+
+      // Total happiness contributed (all time)
+      const { data: happyData } = await supabase.from('tasks').select('happiness_reward')
+        .eq('participant_id', participant.id).eq('completed', true);
+      const totalHappiness = (happyData || []).reduce((s, t) => s + (t.happiness_reward || 0), 0);
+
+      // Raffle entries (all time)
+      const { count: totalEntries } = await supabase.from('raffle_entries').select('*', { count: 'exact', head: true })
+        .eq('wallet_address', wallet);
+
+      // Per-life breakdown
+      const { data: lifeEntries } = await supabase.from('raffle_entries').select('life_number')
+        .eq('wallet_address', wallet);
+      const lifeCounts = {};
+      (lifeEntries || []).forEach(e => { lifeCounts[e.life_number] = (lifeCounts[e.life_number] || 0) + 1; });
+
+      // Puzzle contributions (all time) — count from group_puzzles contributions JSONB
+      const { data: puzzles } = await supabase.from('group_puzzles').select('contributions');
+      let puzzleContribs = 0;
+      (puzzles || []).forEach(p => {
+        (p.contributions || []).forEach(c => {
+          if (!c.__meta && c.wallet === wallet) puzzleContribs++;
+        });
+      });
+
+      // Chat messages count
+      const { count: chatMsgs } = await supabase.from('chat_messages').select('*', { count: 'exact', head: true })
+        .eq('wallet_address', wallet).eq('message_type', 'chat');
+
+      // First seen (join date)
+      const joinDate = participant.created_at;
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        wallet: participant.wallet_address,
+        name: participant.display_name || 'explorer',
+        joined: joinDate,
+        stats: {
+          totalTasks: totalTasks || 0,
+          tasksByType: typeCounts,
+          totalDrawings: totalDrawings || 0,
+          totalLikes,
+          totalHappiness: Math.round(totalHappiness * 10) / 10,
+          totalEntries: totalEntries || 0,
+          entriesByLife: lifeCounts,
+          puzzleContribs,
+          chatMessages: chatMsgs || 0,
+        }
+      }));
+    } catch (e) {
+      console.error('Profile error:', e.message);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ======================== LEADERBOARD / RANKING ========================
-  if (req.url === '/api/ranking' && req.method === 'GET') {
+  if (req.url.startsWith('/api/ranking') && req.method === 'GET') {
     if (!supabase) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ players: [], total: 0 }));
       return;
     }
     try {
+      const url = new URL(req.url, 'http://localhost');
+      const scope = url.searchParams.get('scope') || 'life'; // 'life' or 'global'
+
       const { data: state } = await supabase.from('global_state').select('current_life').eq('id', 1).single();
       const lifeNum = state?.current_life || 1;
 
-      // Get ALL raffle entries for current life — this is the source of truth
-      const { data: entries } = await supabase
-        .from('raffle_entries')
-        .select('wallet_address, participant_id, created_at')
-        .eq('life_number', lifeNum);
-
-      // Group entries by wallet
-      const walletMap = {};
-      (entries || []).forEach(e => {
-        if (!walletMap[e.wallet_address]) {
-          walletMap[e.wallet_address] = { count: 0, participant_id: e.participant_id, timestamps: [] };
-        }
-        walletMap[e.wallet_address].count++;
-        walletMap[e.wallet_address].timestamps.push(e.created_at);
-      });
-
-      // For each active player this life, get their display name and compute happiness
-      const ranked = await Promise.all(Object.entries(walletMap).map(async ([wallet, info]) => {
-        // Get display name
-        const { data: participant } = await supabase
+      if (scope === 'global') {
+        // ---- GLOBAL ALL-TIME LEADERBOARD ----
+        const { data: allParticipants } = await supabase
           .from('participants')
-          .select('display_name')
-          .eq('id', info.participant_id)
-          .single();
+          .select('id, wallet_address, display_name, created_at')
+          .limit(100);
 
-        // Get their most recent N tasks (where N = entries this life) to sum happiness
-        const { data: recentTasks } = await supabase
-          .from('tasks')
-          .select('happiness_reward')
-          .eq('participant_id', info.participant_id)
-          .eq('completed', true)
-          .order('completed_at', { ascending: false })
-          .limit(info.count);
+        const ranked = await Promise.all((allParticipants || []).map(async (p) => {
+          const { count: totalTasks } = await supabase.from('tasks').select('*', { count: 'exact', head: true })
+            .eq('participant_id', p.id).eq('completed', true);
+          const { data: happyData } = await supabase.from('tasks').select('happiness_reward')
+            .eq('participant_id', p.id).eq('completed', true);
+          const happiness = (happyData || []).reduce((s, t) => s + (t.happiness_reward || 0), 0);
+          const { count: totalEntries } = await supabase.from('raffle_entries').select('*', { count: 'exact', head: true })
+            .eq('wallet_address', p.wallet_address);
+          const { count: totalDrawings } = await supabase.from('drawings').select('*', { count: 'exact', head: true })
+            .eq('participant_id', p.id);
 
-        const happiness = (recentTasks || []).reduce((sum, t) => sum + (t.happiness_reward || 0), 0);
-
-        return {
-          wallet,
-          name: participant?.display_name || 'explorer',
-          tasks: info.count,
-          happiness,
-          entries: info.count,
-        };
-      }));
-
-      // Also include participants with 0 entries this life
-      const { data: allPlayers } = await supabase
-        .from('participants')
-        .select('wallet_address, display_name')
-        .limit(50);
-
-      (allPlayers || []).forEach(p => {
-        if (!walletMap[p.wallet_address]) {
-          ranked.push({
+          return {
             wallet: p.wallet_address,
             name: p.display_name || 'explorer',
-            tasks: 0, happiness: 0, entries: 0,
-          });
-        }
-      });
+            tasks: totalTasks || 0,
+            happiness: Math.round(happiness * 10) / 10,
+            entries: totalEntries || 0,
+            drawings: totalDrawings || 0,
+            joined: p.created_at,
+          };
+        }));
 
-      // Sort by entries (= tasks this life), then happiness
-      ranked.sort((a, b) => b.entries - a.entries || b.happiness - a.happiness);
-      ranked.forEach((p, i) => { p.rank = i + 1; });
+        ranked.sort((a, b) => b.tasks - a.tasks || b.happiness - a.happiness);
+        ranked.forEach((p, i) => { p.rank = i + 1; });
 
-      const { count: totalPlayers } = await supabase.from('participants').select('*', { count: 'exact', head: true });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ players: ranked, total: ranked.length, life: lifeNum, scope: 'global' }));
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ players: ranked, total: totalPlayers, life: lifeNum }));
+      } else {
+        // ---- PER-LIFE LEADERBOARD (current life) ----
+        const { data: entries } = await supabase
+          .from('raffle_entries')
+          .select('wallet_address, participant_id, created_at')
+          .eq('life_number', lifeNum);
+
+        const walletMap = {};
+        (entries || []).forEach(e => {
+          if (!walletMap[e.wallet_address]) {
+            walletMap[e.wallet_address] = { count: 0, participant_id: e.participant_id };
+          }
+          walletMap[e.wallet_address].count++;
+        });
+
+        const ranked = await Promise.all(Object.entries(walletMap).map(async ([wallet, info]) => {
+          const { data: participant } = await supabase.from('participants').select('display_name')
+            .eq('id', info.participant_id).single();
+          const { data: recentTasks } = await supabase.from('tasks').select('happiness_reward')
+            .eq('participant_id', info.participant_id).eq('completed', true)
+            .order('completed_at', { ascending: false }).limit(info.count);
+          const happiness = (recentTasks || []).reduce((sum, t) => sum + (t.happiness_reward || 0), 0);
+
+          return {
+            wallet, name: participant?.display_name || 'explorer',
+            tasks: info.count, happiness: Math.round(happiness * 10) / 10, entries: info.count,
+          };
+        }));
+
+        ranked.sort((a, b) => b.entries - a.entries || b.happiness - a.happiness);
+        ranked.forEach((p, i) => { p.rank = i + 1; });
+
+        const { count: totalPlayers } = await supabase.from('participants').select('*', { count: 'exact', head: true });
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ players: ranked, total: totalPlayers, life: lifeNum, scope: 'life' }));
+      }
     } catch (e) {
       console.error('Ranking error:', e.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
