@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pippin Admin Panel</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1a1410; color: #e8d5c4; padding: 2rem; }
+  h1 { color: #e8a0bf; margin-bottom: 1rem; }
+  h2 { color: #c4956a; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid #333; padding-bottom: 0.3rem; }
+  .login { max-width: 400px; margin: 4rem auto; text-align: center; }
+  .login input { padding: 0.8rem; width: 100%; background: #2a2018; border: 1px solid #4a3a2a; color: #e8d5c4; border-radius: 8px; font-size: 1rem; margin: 0.5rem 0; }
+  .login button { padding: 0.8rem 2rem; background: #e8a0bf; color: #1a1410; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; }
+  .login button:hover { background: #d48aaa; }
+  .panel { display: none; max-width: 900px; margin: 0 auto; }
+  .card { background: #2a2018; border-radius: 12px; padding: 1rem 1.5rem; margin: 0.5rem 0; }
+  .state-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; }
+  .state-item { text-align: center; }
+  .state-item .label { font-size: 0.75rem; color: #888; }
+  .state-item .value { font-size: 1.5rem; font-weight: bold; color: #e8a0bf; }
+  .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 0.3rem; }
+  .btn-pink { background: #e8a0bf; color: #1a1410; }
+  .btn-red { background: #ef5350; color: white; }
+  .btn-green { background: #66bb6a; color: #1a1410; }
+  .btn:hover { opacity: 0.85; }
+  table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+  th, td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #3a2a1a; font-size: 0.85rem; }
+  th { color: #c4956a; }
+  .winner-badge { background: #ffd700; color: #1a1410; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+  .wallet { font-family: monospace; font-size: 0.8rem; }
+  .status-msg { padding: 0.5rem; margin: 0.5rem 0; border-radius: 6px; }
+  .status-ok { background: #1b5e20; color: #a5d6a7; }
+  .status-err { background: #b71c1c; color: #ef9a9a; }
+  .actions { margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<div class="login" id="loginPanel">
+  <h1>🦄 Pippin Admin</h1>
+  <p style="color:#888; margin-bottom:1rem;">Enter admin key to access</p>
+  <input type="password" id="adminKeyInput" placeholder="Admin key..." />
+  <br><button onclick="login()">Enter</button>
+</div>
+
+<div class="panel" id="adminPanel">
+  <h1>🦄 Pippin Admin Panel</h1>
+  <div id="statusMsg"></div>
+
+  <h2>Current State</h2>
+  <div class="card">
+    <div class="state-grid" id="stateGrid"></div>
+  </div>
+
+  <h2>Actions</h2>
+  <div class="card actions">
+    <button class="btn btn-pink" onclick="resetTimer()">🔄 Reset Timer (current life)</button>
+    <button class="btn btn-red" onclick="drawWinner()">🎰 Draw Raffle Winner</button>
+    <button class="btn btn-green" onclick="refresh()">🔄 Refresh</button>
+  </div>
+
+  <h2>Winner History</h2>
+  <div class="card" id="winnerHistory"></div>
+
+  <h2>All Participants</h2>
+  <div class="card" id="participantsList"></div>
+
+  <h2>Raffle Entries by Life</h2>
+  <div class="card" id="entriesList"></div>
+</div>
+
+<script>
+let adminKey = '';
+
+function login() {
+  adminKey = document.getElementById('adminKeyInput').value;
+  if (!adminKey) return;
+  document.getElementById('loginPanel').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'block';
+  refresh();
+}
+
+function showStatus(msg, ok) {
+  const el = document.getElementById('statusMsg');
+  el.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = ''; el.className = ''; }, 5000);
+}
+
+async function refresh() {
+  try {
+    const res = await fetch(`/api/admin/status?key=${encodeURIComponent(adminKey)}`);
+    const data = await res.json();
+    if (data.error) { showStatus(data.error, false); return; }
+
+    // State grid
+    const s = data.state || {};
+    const timerEnd = s.timer_end ? new Date(s.timer_end) : null;
+    const remaining = timerEnd ? Math.max(0, timerEnd - Date.now()) : 0;
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+
+    document.getElementById('stateGrid').innerHTML = `
+      <div class="state-item"><div class="label">Life</div><div class="value">#${s.current_life || 1}</div></div>
+      <div class="state-item"><div class="label">Happiness</div><div class="value">${s.happiness || 0}%</div></div>
+      <div class="state-item"><div class="label">Timer</div><div class="value">${mins}m ${secs}s</div></div>
+      <div class="state-item"><div class="label">Duration</div><div class="value">${s.timer_duration_minutes || 30}m</div></div>
+      <div class="state-item"><div class="label">Players</div><div class="value">${data.total_participants}</div></div>
+      <div class="state-item"><div class="label">Tasks Done</div><div class="value">${s.total_tasks_completed || 0}</div></div>
+      <div class="state-item"><div class="label">Last Winner</div><div class="value" style="font-size:0.9rem">${s.last_winner_name || 'none'}</div></div>
+      <div class="state-item"><div class="label">Winner Wallet</div><div class="value wallet" style="font-size:0.7rem; word-break:break-all">${s.last_winner_wallet || '-'}</div></div>
+    `;
+
+    // Winner history from state
+    let winnerHtml = '';
+    if (s.last_winner_wallet) {
+      winnerHtml += `<p><span class="winner-badge">LAST WINNER</span> Life #${(s.current_life || 1) - 1}: <b>${s.last_winner_name || 'anonymous'}</b></p>`;
+      winnerHtml += `<p class="wallet" style="margin-top:0.3rem">Wallet: ${s.last_winner_wallet}</p>`;
+      winnerHtml += `<p style="margin-top:0.3rem; color:#888; font-size:0.8rem;">Copy wallet address above to send SOL reward</p>`;
+    } else {
+      winnerHtml = '<p style="color:#888">No winners yet</p>';
+    }
+    document.getElementById('winnerHistory').innerHTML = winnerHtml;
+
+    // Participants table
+    const players = data.participants || [];
+    let pHtml = `<table><tr><th>#</th><th>Name</th><th>Wallet</th><th>Tasks</th><th>Happiness</th></tr>`;
+    players.forEach((p, i) => {
+      pHtml += `<tr>
+        <td>${i + 1}</td>
+        <td>${p.display_name || 'anon'}</td>
+        <td class="wallet">${p.wallet_address ? p.wallet_address.substring(0, 8) + '...' + p.wallet_address.slice(-4) : '-'}</td>
+        <td>${p.tasks_completed || 0}</td>
+        <td>${p.total_happiness_contributed || 0}</td>
+      </tr>`;
+    });
+    pHtml += '</table>';
+    document.getElementById('participantsList').innerHTML = pHtml;
+
+    // Entries by life
+    const ebl = data.entries_by_life || {};
+    let eHtml = '';
+    Object.keys(ebl).sort((a, b) => b - a).forEach(life => {
+      const entries = ebl[life];
+      eHtml += `<h3 style="margin:0.5rem 0; color:#c4956a;">Life #${life} (${entries.length} entries)</h3>`;
+      const walletCounts = {};
+      entries.forEach(e => { walletCounts[e.wallet_address] = (walletCounts[e.wallet_address] || 0) + 1; });
+      eHtml += '<table><tr><th>Wallet</th><th>Entries</th></tr>';
+      Object.entries(walletCounts).sort((a, b) => b[1] - a[1]).forEach(([w, c]) => {
+        eHtml += `<tr><td class="wallet">${w.substring(0, 8)}...${w.slice(-4)}</td><td>${c}</td></tr>`;
+      });
+      eHtml += '</table>';
+    });
+    if (!eHtml) eHtml = '<p style="color:#888">No raffle entries yet</p>';
+    document.getElementById('entriesList').innerHTML = eHtml;
+
+    showStatus('Refreshed', true);
+  } catch (e) {
+    showStatus('Error: ' + e.message, false);
+  }
+}
+
+async function resetTimer() {
+  if (!confirm('Reset timer for current life? This will also reset happiness to 0.')) return;
+  try {
+    const res = await fetch('/api/admin/reset-timer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: adminKey }),
+    });
+    const data = await res.json();
+    if (data.error) { showStatus(data.error, false); return; }
+    showStatus(`Timer reset! Life #${data.life}, ${data.duration_minutes} minutes`, true);
+    refresh();
+  } catch (e) {
+    showStatus('Error: ' + e.message, false);
+  }
+}
+
+async function drawWinner() {
+  if (!confirm('Draw raffle winner NOW? This will end the current life and start a new one!')) return;
+  try {
+    const res = await fetch('/api/admin/draw-winner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: adminKey }),
+    });
+    const data = await res.json();
+    if (data.error) { showStatus(data.error, false); return; }
+    if (data.winner) {
+      showStatus(`🎉 Winner: ${data.name} (${data.winner}) from Life #${data.life} with ${data.entries} entries!`, true);
+    } else {
+      showStatus(data.message || 'No winner', false);
+    }
+    refresh();
+  } catch (e) {
+    showStatus('Error: ' + e.message, false);
+  }
+}
+
+// Auto-refresh every 30 seconds
+setInterval(() => { if (adminKey) refresh(); }, 30000);
+
+// Enter key to login
+document.getElementById('adminKeyInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') login();
+});
+</script>
+</body>
+</html>

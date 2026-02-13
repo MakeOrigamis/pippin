@@ -258,44 +258,8 @@
     }
 
     /* Loading overlay */
-    .loading-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #E8D5C4;
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1.5rem;
-      transition: opacity 1.2s ease;
-    }
-
-    .loading-overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .loading-text {
-      font-family: 'Baloo 2', cursive;
-      font-size: 1.5rem;
-      color: var(--green-dark);
-    }
-
-    .loading-sub {
-      font-size: 1rem;
-      color: var(--text-light);
-      font-weight: 500;
-      font-style: italic;
-    }
-
-    .loading-spinner {
-      width: 50px; height: 50px;
-      border: 4px solid var(--cream-dark);
-      border-top-color: var(--pink);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
+    /* old loading spinner - replaced by new loading screen */
+    .loading-sub { display: none; }
 
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -1159,9 +1123,34 @@
       .task-panel { width: 170px; }
       .wallet-panel { width: 170px; }
     }
+    /* Loading Screen */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #1a1410;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 10000;
+      transition: opacity 0.5s;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loading-title { font-family: 'Playfair Display', serif; color: #e8a0bf; font-size: 1.8rem; margin-bottom: 1rem; }
+    .loading-unicorn { font-size: 3rem; animation: loadBounce 1s infinite; }
+    @keyframes loadBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .loading-bar-outer { width: 300px; height: 8px; background: #2a2018; border-radius: 4px; margin-top: 1.5rem; overflow: hidden; }
+    .loading-bar-inner { height: 100%; width: 0%; background: linear-gradient(90deg, #e8a0bf, #c4956a); border-radius: 4px; transition: width 0.3s; }
+    .loading-text { color: #888; font-size: 0.8rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
+
+  <!-- LOADING SCREEN -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-unicorn">🦄</div>
+    <div class="loading-title">ピピンのグラウンドホッグデー</div>
+    <div class="loading-bar-outer"><div class="loading-bar-inner" id="loadingBar"></div></div>
+    <div class="loading-text" id="loadingText">Loading world desu...</div>
+  </div>
 
   <!-- INTRO OVERLAY - click to enter -->
   <div class="intro-overlay" id="introOverlay">
@@ -1170,14 +1159,14 @@
     <div class="intro-sub">Pippin's Groundhog Day</div>
 
     <div class="intro-howto">
-      <div class="howto-title">遊び方 / How to Play</div>
+      <div class="howto-title">遊び方 / How to Play desu!</div>
       <div class="howto-steps">
-        <div class="howto-step"><span class="howto-num">1</span><span>Enter the world and explore — move Pippin with <b>WASD</b>, fly with <b>Space/Shift</b></span></div>
-        <div class="howto-step"><span class="howto-num">2</span><span>Talk to Pippin — type in the chat bar at the bottom</span></div>
-        <div class="howto-step"><span class="howto-num">3</span><span>Register your <b>SOL wallet</b> (bottom-left panel) to participate</span></div>
-        <div class="howto-step"><span class="howto-num">4</span><span>Complete <b>tasks</b> Pippin asks for (top-right panel) — write, draw, dance!</span></div>
-        <div class="howto-step"><span class="howto-num">5</span><span>Each task raises Pippin's <b>happiness</b> and earns you a <b>raffle entry</b></span></div>
-        <div class="howto-step"><span class="howto-num">6</span><span>When the timer hits zero, a <b>winner is drawn</b> from all entries!</span></div>
+        <div class="howto-step"><span class="howto-num">1</span><span>Enter sekai and explore ne — move Pippin with <b>WASD</b>, fly with <b>Space/Shift</b> desu!</span></div>
+        <div class="howto-step"><span class="howto-num">2</span><span>Talk to Pippin ne — type in chat bar at bottom desu</span></div>
+        <div class="howto-step"><span class="howto-num">3</span><span>Register your <b>SOL wallet</b> (bottom-left panel) to sanka suru ne!</span></div>
+        <div class="howto-step"><span class="howto-num">4</span><span>Complete <b>tasks</b> Pippin asks for (top-right panel) — write, draw, odoru!</span></div>
+        <div class="howto-step"><span class="howto-num">5</span><span>Each task raises Pippin's <b>happiness</b> and earns you <b>raffle entry</b> desu yo!</span></div>
+        <div class="howto-step"><span class="howto-num">6</span><span>When timer hits zero, <b>winner is drawn</b> from all entries ne! Gambatte!</span></div>
       </div>
     </div>
 
@@ -1232,10 +1221,8 @@
     </div>
   </div>
 
-  <!-- Loading -->
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">世界に入る...</div>
+  <!-- Loading (old, replaced by new loading screen above) -->
+  <div id="oldLoadingOverlay" style="display:none">
     <div class="loading-sub" id="loadingStatus">読み込み中...</div>
   </div>
 
@@ -1289,22 +1276,22 @@
   <div class="help-overlay" id="helpOverlay">
     <div class="help-popup">
       <button class="help-close" id="helpClose">&times;</button>
-      <h3>遊び方 / How to Play</h3>
+      <h3>遊び方 / How to Play desu!</h3>
       <div class="help-steps">
-        <p><b>1.</b> Move Pippin: <b>WASD</b> / arrows &middot; Fly: <b>Space</b> (up) / <b>Shift</b> (down)</p>
-        <p><b>2.</b> Talk to Pippin: type in the <b>chat bar</b> at the bottom and press Enter</p>
-        <p><b>3.</b> Register your <b>SOL wallet</b> in the bottom-left panel to participate</p>
-        <p><b>4.</b> After joining, a <b>task panel</b> appears top-right — Pippin will ask you to do things!</p>
-        <p><b>5.</b> Tasks can be: <b>write</b> something, <b>draw</b> on the canvas, <b>dance</b>, or <b>explore</b></p>
-        <p><b>6.</b> Drawing tasks open a <b>full canvas</b> — pick colors, draw, and submit!</p>
-        <p><b>7.</b> Each completed task raises Pippin's <b>happiness</b> and earns you a <b>raffle entry</b></p>
-        <p><b>8.</b> When the <b>timer</b> hits zero, a <b>winner is drawn</b> from all entries!</p>
+        <p><b>1.</b> Move Pippin: <b>WASD</b> / arrows ne &middot; Fly: <b>Space</b> (up) / <b>Shift</b> (down) desu</p>
+        <p><b>2.</b> Talk to Pippin: type in <b>chat bar</b> at bottom and press Enter ne!</p>
+        <p><b>3.</b> Register your <b>SOL wallet</b> in bottom-left panel to sanka suru!</p>
+        <p><b>4.</b> After joining, <b>task panel</b> appears top-right — Pippin will ask you things desu!</p>
+        <p><b>5.</b> Tasks can be: <b>write</b> something, <b>draw</b> on canvas, <b>odoru</b>, or <b>explore</b>!</p>
+        <p><b>6.</b> Drawing tasks open <b>full canvas</b> — pick colors, draw, and submit ne!</p>
+        <p><b>7.</b> Each task raises Pippin's <b>happiness</b> and earns you <b>raffle entry</b> desu yo!</p>
+        <p><b>8.</b> When <b>timer</b> hits zero, <b>winner is drawn</b> from all entries! Gambatte!</p>
       </div>
       <div class="help-keys">
-        <span class="key-tag">W/A/S/D</span> move
-        <span class="key-tag">Space</span> fly up
-        <span class="key-tag">Shift</span> fly down
-        <span class="key-tag">Enter</span> chat
+        <span class="key-tag">W/A/S/D</span> ugoku
+        <span class="key-tag">Space</span> fly up desu
+        <span class="key-tag">Shift</span> fly down ne
+        <span class="key-tag">Enter</span> chat!
       </div>
     </div>
   </div>
@@ -1386,6 +1373,7 @@
   <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -1416,8 +1404,7 @@
     controls.minDistance = 2;
     controls.maxDistance = 60;
     controls.maxPolarAngle = Math.PI / 2 + 0.2;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.2; // very slow, contemplative orbit
+    controls.autoRotate = false;
     controls.update();
 
     // ======================== LIGHTING (backrooms style) ========================
@@ -1449,9 +1436,32 @@
     scene.add(rimLight);
 
     // ======================== LOADERS (declared early) ========================
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/libs/draco/');
     const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
     const fbxLoader = new FBXLoader();
     const loadingStatus = document.getElementById('loadingStatus');
+    const loadingBar = document.getElementById('loadingBar');
+    const loadingText = document.getElementById('loadingText');
+    const loadingOverlayEl = document.getElementById('loadingOverlay');
+
+    // Track loading progress: landscape(40%) + characters(30%) + unicorn(20%) + anims(10%)
+    let loadProgress = { landscape: 0, characters: 0, unicorn: 0, anims: 0 };
+    function updateLoadProgress(key, pct) {
+      loadProgress[key] = pct;
+      const weights = { landscape: 40, characters: 30, unicorn: 20, anims: 10 };
+      const total = Object.keys(weights).reduce((sum, k) => sum + (loadProgress[k] / 100) * weights[k], 0);
+      if (loadingBar) loadingBar.style.width = total + '%';
+    }
+    function setLoadText(text) {
+      if (loadingStatus) loadingStatus.textContent = text;
+      if (loadingText) loadingText.textContent = text;
+    }
+    function hideLoadingScreen() {
+      if (loadingOverlayEl) loadingOverlayEl.classList.add('hidden');
+      setTimeout(() => { if (loadingOverlayEl) loadingOverlayEl.style.display = 'none'; }, 600);
+    }
 
     let unicornModel = null;
     let mixer = null; // unicorn animation mixer
@@ -1527,9 +1537,10 @@
 
     let landscapeBox = null;
 
-    loadingStatus.textContent = 'loading river landscape...';
+    setLoadText('Loading river landscape desu...');
     gltfLoader.load('models/lysergic_river.glb', (gltf) => {
       riverScene = gltf.scene;
+      updateLoadProgress('landscape', 100);
 
       const box = new THREE.Box3().setFromObject(riverScene);
       const size = box.getSize(new THREE.Vector3());
@@ -1685,17 +1696,19 @@
     (progress) => {
       if (progress.total > 0) {
         const pct = Math.round((progress.loaded / progress.total) * 100);
-        loadingStatus.textContent = `loading landscape... ${pct}%`;
+        setLoadText(`Loading landscape... ${pct}%`);
+        updateLoadProgress('landscape', pct);
       }
     },
     (error) => {
       dbg('Landscape failed: ' + error.message);
-      loadingStatus.textContent = 'landscape failed, trying characters...';
+      setLoadText('landscape failed, trying characters desu...');
+      updateLoadProgress('landscape', 100);
       loadCharacters(new THREE.Vector3(0, 0, 0), null);
     });
 
     function loadCharacters(landscapeCenter, lBox) {
-      loadingStatus.textContent = 'loading characters...';
+      setLoadText('Loading characters desu...');
       gltfLoader.load('models/lysergic_v2.glb', (gltf) => {
         const charScene = gltf.scene;
 
@@ -1812,17 +1825,20 @@
         scene.add(charScene);
 
         // Load unicorn last - use the landscape bathtub
-        loadingStatus.textContent = 'loading unicorn...';
+        setLoadText('Loading unicorn desu...');
+        updateLoadProgress('characters', 100);
         loadUnicorn(charCenter, charBox, landscapeBathtub, []);
       },
       (progress) => {
         if (progress.total > 0) {
           const pct = Math.round((progress.loaded / progress.total) * 100);
-          loadingStatus.textContent = `loading characters... ${pct}%`;
+          setLoadText(`Loading characters... ${pct}%`);
+          updateLoadProgress('characters', pct);
         }
       },
       (error) => {
         dbg('Characters failed: ' + error.message);
+        updateLoadProgress('characters', 100);
         loadUnicorn(landscapeCenter, lBox, null, []);
       });
     }
@@ -1997,12 +2013,13 @@
       (progress) => {
         if (progress.total > 0) {
           const pct = Math.round((progress.loaded / progress.total) * 100);
-          loadingStatus.textContent = `loading unicorn... ${pct}%`;
+          setLoadText(`Loading unicorn... ${pct}%`);
+          updateLoadProgress('unicorn', pct);
         }
       },
       (error) => {
         console.error('Error loading unicorn:', error);
-        loadingStatus.textContent = 'error loading unicorn :(';
+        setLoadText('error loading unicorn desu :(');
       });
     }
 
@@ -2020,7 +2037,7 @@
     const totalAnims = Object.keys(animFiles).length;
 
     function loadFBXAnimations() {
-      loadingStatus.textContent = 'loading animations...';
+      setLoadText('Loading animations desu...');
 
       Object.entries(animFiles).forEach(([name, filePath]) => {
         fbxLoader.load(filePath, (fbx) => {
@@ -2071,7 +2088,8 @@
           }
 
           loadedAnims++;
-          loadingStatus.textContent = `loading animations... ${loadedAnims}/${totalAnims}`;
+          setLoadText(`Loading animations... ${loadedAnims}/${totalAnims}`);
+          updateLoadProgress('anims', Math.round((loadedAnims / totalAnims) * 100));
           if (loadedAnims >= totalAnims) onAllLoaded();
         },
         undefined,
@@ -2093,9 +2111,11 @@
         dbg('Started built-in animation');
       }
 
-      // Hide loading overlay
+      // Hide loading screen
+      updateLoadProgress('anims', 100);
+      setLoadText('Ready desu!');
       setTimeout(() => {
-        document.getElementById('loadingOverlay').classList.add('hidden');
+        hideLoadingScreen();
       }, 500);
     }
 
@@ -2246,6 +2266,8 @@
     const chatSend = document.getElementById('chatSend');
     let isSpeaking = false;
     let currentAudio = null;
+    let ttsAbortController = null;
+    let speechIdCounter = 0;
 
     // Fallback responses (jp/en pairs)
     const pippinResponses = [
@@ -2284,20 +2306,35 @@
       speakText(langMode === 'jp' ? jp : en);
     }
 
-    // Text-to-speech via ElevenLabs (proxied through our server) - speaks Japanese
+    // Text-to-speech via ElevenLabs (proxied through our server)
     async function speakText(text) {
-      if (isSpeaking && currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
+      // Cancel any in-flight TTS request
+      if (ttsAbortController) {
+        ttsAbortController.abort();
+        ttsAbortController = null;
       }
+      // Stop any currently playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.onended = null;
+        currentAudio = null;
+        unduckMusic();
+      }
+
+      const mySpeechId = ++speechIdCounter;
       isSpeaking = true;
+      ttsAbortController = new AbortController();
 
       try {
         const response = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text }),
+          signal: ttsAbortController.signal,
         });
+
+        // If a newer speech was requested while we were fetching, bail out
+        if (mySpeechId !== speechIdCounter) return;
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
@@ -2307,6 +2344,8 @@
         }
 
         const audioBlob = await response.blob();
+        if (mySpeechId !== speechIdCounter) return; // stale check again
+
         const audioUrl = URL.createObjectURL(audioBlob);
         currentAudio = new Audio(audioUrl);
 
@@ -2318,31 +2357,36 @@
           playAnimation(pick);
         }
 
-        duckMusic(); // lower BGM while speaking
+        duckMusic();
         currentAudio.play();
         dbg(`Speaking: "${text.substring(0, 40)}..."`);
 
-        currentAudio.addEventListener('ended', () => {
+        currentAudio.onended = () => {
+          if (mySpeechId !== speechIdCounter) return;
           isSpeaking = false;
-          unduckMusic(); // restore BGM volume
+          unduckMusic();
           URL.revokeObjectURL(audioUrl);
           currentAudio = null;
-          // Keep built-in animation playing
           if (animations.builtin && currentAction !== animations.builtin) {
             playAnimation('builtin');
           }
-        });
+        };
 
-        currentAudio.addEventListener('error', (e) => {
-          console.warn('Audio playback error:', e);
+        currentAudio.onerror = () => {
+          if (mySpeechId !== speechIdCounter) return;
+          console.warn('Audio playback error');
           isSpeaking = false;
           unduckMusic();
-        });
+          currentAudio = null;
+        };
 
       } catch (err) {
+        if (err.name === 'AbortError') return; // intentionally cancelled
         console.warn('TTS fetch error:', err);
-        isSpeaking = false;
-        unduckMusic();
+        if (mySpeechId === speechIdCounter) {
+          isSpeaking = false;
+          unduckMusic();
+        }
       }
     }
 
@@ -2591,16 +2635,6 @@
     }
 
     animate();
-
-    // Pause auto-rotate when user grabs, resume after idle
-    let orbitTimeout = null;
-    controls.addEventListener('start', () => {
-      controls.autoRotate = false;
-      if (orbitTimeout) clearTimeout(orbitTimeout);
-    });
-    controls.addEventListener('end', () => {
-      orbitTimeout = setTimeout(() => { controls.autoRotate = true; }, 6000);
-    });
 
     // ======================== MOVEMENT CONTROLS ========================
     // Track which keys are currently held down

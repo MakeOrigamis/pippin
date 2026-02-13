@@ -24,6 +24,7 @@ const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '6dcFFb31LVaCdYev
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const ADMIN_KEY = process.env.ADMIN_KEY || 'pippin-admin-2026';
 
 // Initialize Supabase client
 let supabase = null;
@@ -108,9 +109,9 @@ const MIME_TYPES = {
 
 // Large files hosted on GitHub Releases, streamed to browser + cached locally
 const CDN_ASSETS = {
-  'models/lysergic_river.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_river.glb',
-  'models/lysergic_v2.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_v2.glb',
-  'music/bgm.mp3': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/bgm.mp3',
+  'models/lysergic_river.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v2/lysergic_river.glb',
+  'models/lysergic_v2.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v2/lysergic_v2.glb',
+  'music/bgm.mp3': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v2/bgm.mp3',
 };
 const cdnDownloading = {}; // Track in-progress downloads to avoid duplicates
 
@@ -419,7 +420,9 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
           return;
         }
 
-        const happinessReward = task_type === 'draw' ? 15 : 10;
+        // Small increments - community must work together!
+        // Drawing: +3, other tasks: +2. Need ~40 tasks to fill bar.
+        const happinessReward = task_type === 'draw' ? 3 : 2;
 
         // Create task record
         const { data: task } = await supabase
@@ -623,6 +626,103 @@ ONLY output the JSON. No markdown, no code blocks.`;
       res.end(JSON.stringify({ error: e.message }));
     }
     return;
+  }
+
+  // ======================== ADMIN PANEL ========================
+  // Serve admin page
+  if (req.url === '/admin' && req.method === 'GET') {
+    const adminPath = path.join(__dirname, 'admin.html');
+    if (fs.existsSync(adminPath)) {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(fs.readFileSync(adminPath));
+    } else {
+      res.writeHead(404); res.end('Admin page not found');
+    }
+    return;
+  }
+
+  // Admin: get all winners history + current state
+  if (req.url.startsWith('/api/admin/status') && req.method === 'GET') {
+    const url = new URL(req.url, `http://localhost`);
+    const key = url.searchParams.get('key');
+    if (key !== ADMIN_KEY) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid admin key' }));
+      return;
+    }
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Supabase offline' }));
+      return;
+    }
+    try {
+      const { data: state } = await supabase.from('global_state').select('*').eq('id', 1).single();
+      const { data: participants } = await supabase.from('participants').select('*').order('tasks_completed', { ascending: false });
+      const { data: entries } = await supabase.from('raffle_entries').select('*').order('created_at', { ascending: false });
+
+      // Group entries by life
+      const entriesByLife = {};
+      (entries || []).forEach(e => {
+        if (!entriesByLife[e.life_number]) entriesByLife[e.life_number] = [];
+        entriesByLife[e.life_number].push(e);
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        state,
+        participants: participants || [],
+        entries_by_life: entriesByLife,
+        total_participants: (participants || []).length,
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // Admin: reset timer for current life
+  if (req.url === '/api/admin/reset-timer' && req.method === 'POST') {
+    const body = await parseBody(req);
+    if (body.key !== ADMIN_KEY) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid admin key' }));
+      return;
+    }
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Supabase offline' }));
+      return;
+    }
+    try {
+      const { data: state } = await supabase.from('global_state').select('*').eq('id', 1).single();
+      const lifeNum = state?.current_life || 1;
+      const LIFE_DURATIONS = [30, 60, 120, 240, 480, 960, 1920];
+      const duration = LIFE_DURATIONS[Math.min(lifeNum - 1, LIFE_DURATIONS.length - 1)];
+      await supabase.from('global_state').update({
+        timer_end: new Date(Date.now() + duration * 60000).toISOString(),
+        timer_duration_minutes: duration,
+        happiness: 0,
+        updated_at: new Date().toISOString(),
+      }).eq('id', 1);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, duration_minutes: duration, life: lifeNum }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // Admin: manually draw raffle winner
+  if (req.url === '/api/admin/draw-winner' && req.method === 'POST') {
+    const body = await parseBody(req);
+    if (body.key !== ADMIN_KEY) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid admin key' }));
+      return;
+    }
+    // Fall through to the regular raffle draw logic below
   }
 
   // ======================== DRAW RAFFLE WINNER ========================
@@ -924,4 +1024,54 @@ function serveFile(filePath, contentType, req, res) {
 server.listen(PORT, () => {
   console.log(`ピピンのグラウンドホッグデー running on port ${PORT}`);
   console.log(`TTS: ${ELEVENLABS_API_KEY ? 'yes' : 'no'} | Claude: ${ANTHROPIC_API_KEY ? 'yes' : 'no'} | Supabase: ${supabase ? 'yes' : 'offline'}`);
+
+  // Pre-warm CDN cache: download large assets in background on startup
+  Object.entries(CDN_ASSETS).forEach(([relPath, cdnUrl]) => {
+    const filePath = './' + relPath;
+    if (fs.existsSync(filePath)) {
+      console.log(`CDN warm: ${relPath} already cached`);
+      return;
+    }
+    console.log(`CDN warm: pre-fetching ${relPath}...`);
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const prewarm = (url, redirects) => {
+      if (redirects > 5) { console.error(`CDN warm: too many redirects for ${relPath}`); return; }
+      const parsedUrl = new URL(url);
+      const proto = parsedUrl.protocol === 'https:' ? https : http;
+      proto.get({
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers: { 'User-Agent': 'PippinServer/1.0' },
+        timeout: 300000,
+      }, (dlRes) => {
+        if (dlRes.statusCode === 301 || dlRes.statusCode === 302) {
+          dlRes.resume();
+          prewarm(dlRes.headers.location, redirects + 1);
+          return;
+        }
+        if (dlRes.statusCode !== 200) {
+          console.error(`CDN warm: failed ${dlRes.statusCode} for ${relPath}`);
+          return;
+        }
+        const tmpPath = filePath + '.tmp';
+        const ws = fs.createWriteStream(tmpPath);
+        let bytes = 0;
+        dlRes.on('data', (c) => { bytes += c.length; });
+        dlRes.pipe(ws);
+        ws.on('finish', () => {
+          try {
+            fs.renameSync(tmpPath, filePath);
+            console.log(`CDN warm: cached ${relPath} (${(bytes / 1048576).toFixed(1)}MB)`);
+            delete cdnDownloading[relPath];
+          } catch (e) { console.error(`CDN warm rename error: ${e.message}`); }
+        });
+      }).on('error', (e) => {
+        console.error(`CDN warm error for ${relPath}: ${e.message}`);
+      });
+    };
+    cdnDownloading[relPath] = true;
+    prewarm(cdnUrl, 0);
+  });
 });
