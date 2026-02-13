@@ -566,14 +566,35 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
           .single();
         if (taskError) console.warn('Task insert error:', taskError.message);
 
-        // Save drawing if it's a draw task
-        if (task_type === 'draw' && image_data && task) {
-          await supabase.from('drawings').insert({
+        // Save drawing if it's a draw task (save even if task insert failed)
+        if (task_type === 'draw' && image_data) {
+          const drawInsert = {
             participant_id: participant.id,
-            task_id: task.id,
             image_data,
             prompt: task_prompt || '',
-          });
+          };
+          if (task) drawInsert.task_id = task.id;
+          const { error: drawErr } = await supabase.from('drawings').insert(drawInsert);
+          if (drawErr) console.warn('Drawing save error:', drawErr.message);
+
+          // LOCAL BACKUP: save drawing as PNG file + metadata
+          try {
+            const backupDir = path.join(__dirname, 'drawings_backup');
+            if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            const safePrompt = (task_prompt || 'free').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+            const filename = `${ts}_${safePrompt}`;
+            // Save the PNG
+            const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
+            fs.writeFileSync(path.join(backupDir, `${filename}.png`), Buffer.from(base64Data, 'base64'));
+            // Save metadata JSON
+            fs.writeFileSync(path.join(backupDir, `${filename}.json`), JSON.stringify({
+              wallet, prompt: task_prompt, artist: participant.display_name,
+              created_at: new Date().toISOString(), life: lifeNum,
+            }));
+          } catch (backupErr) {
+            console.warn('Drawing backup error (non-fatal):', backupErr.message);
+          }
         }
 
         // Add raffle entry
@@ -806,6 +827,67 @@ ONLY output the JSON. No markdown, no code blocks.`;
         entries_by_life: entriesByLife,
         total_participants: (participants || []).length,
       }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ======================== ADMIN: EXPORT ALL DRAWINGS BACKUP ========================
+  if (req.url === '/api/admin/backup-drawings' && req.method === 'POST') {
+    const body = await parseBody(req);
+    if (body.key !== ADMIN_KEY) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid admin key' }));
+      return;
+    }
+    try {
+      // Fetch ALL drawings from Supabase
+      let allDrawings = [];
+      let offset = 0;
+      const PAGE = 100;
+      while (true) {
+        const { data, error } = await supabase
+          .from('drawings')
+          .select('id, prompt, image_data, created_at, participant_id, likes')
+          .order('created_at', { ascending: true })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allDrawings = allDrawings.concat(data);
+        if (data.length < PAGE) break;
+        offset += PAGE;
+      }
+
+      // Save each drawing as PNG + metadata to local backup
+      const backupDir = path.join(__dirname, 'drawings_backup');
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+      let saved = 0;
+      for (const d of allDrawings) {
+        try {
+          const ts = new Date(d.created_at).toISOString().replace(/[:.]/g, '-');
+          const safePrompt = (d.prompt || 'free').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+          const filename = `${ts}_${safePrompt}`;
+          const pngPath = path.join(backupDir, `${filename}.png`);
+          if (!fs.existsSync(pngPath)) { // don't overwrite existing backups
+            const base64Data = (d.image_data || '').replace(/^data:image\/\w+;base64,/, '');
+            if (base64Data) {
+              fs.writeFileSync(pngPath, Buffer.from(base64Data, 'base64'));
+              // Enrich with artist info
+              const { data: p } = await supabase.from('participants').select('display_name, wallet_address').eq('id', d.participant_id).single();
+              fs.writeFileSync(path.join(backupDir, `${filename}.json`), JSON.stringify({
+                id: d.id, prompt: d.prompt, artist: p?.display_name || 'anonymous',
+                wallet: p?.wallet_address || '', likes: d.likes || 0,
+                created_at: d.created_at,
+              }));
+              saved++;
+            }
+          }
+        } catch (e) { /* skip individual failures */ }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, total_in_db: allDrawings.length, newly_backed_up: saved }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));

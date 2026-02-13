@@ -2378,6 +2378,7 @@
     // Container that sits in the bathtub; unicorn model goes inside.
     // Animations move the inner model but the container holds the bathtub offset.
     let unicornContainer = null;
+    let unicornGroundY = null; // the Y position the unicorn starts at — used as floor
 
     // Make animation clips "in-place": zero out the root Hips position track
     // so the dance happens at the model's origin instead of at the Mixamo baked absolute position.
@@ -2445,7 +2446,8 @@
         const startPos = sceneCenter.clone();
         startPos.y += 2; // start floating a bit above ground
         unicornContainer.position.copy(startPos);
-        dbg(`Unicorn placed at: (${startPos.x.toFixed(1)}, ${startPos.y.toFixed(1)}, ${startPos.z.toFixed(1)}) - free roam!`);
+        unicornGroundY = startPos.y; // floor: exactly at starting height (never sink below landscape)
+        dbg(`Unicorn placed at: (${startPos.x.toFixed(1)}, ${startPos.y.toFixed(1)}, ${startPos.z.toFixed(1)}) - floor Y: ${unicornGroundY.toFixed(1)}`);
 
         // Enable shadows
         unicornModel.traverse((child) => {
@@ -3855,7 +3857,10 @@
         if (keysHeld['ArrowLeft'] || keysHeld['a'] || keysHeld['A'])  moveX -= SPEED;
         if (keysHeld['ArrowRight'] || keysHeld['d'] || keysHeld['D']) moveX += SPEED;
         if (keysHeld[' '] || flyUpHeld)      moveY += FLY_SPEED;  // Space / fly up btn
-        if (keysHeld['Shift'] || flyDownHeld) moveY -= FLY_SPEED;  // Shift / fly down btn
+        // Shift/fly-down only works if above ground level (can't sink below landscape)
+        if ((keysHeld['Shift'] || flyDownHeld) && unicornGroundY !== null && unicornContainer.position.y > unicornGroundY + 0.1) {
+          moveY -= FLY_SPEED;
+        }
 
         // Mobile joystick input
         if (Math.abs(joystickX) > 0.1 || Math.abs(joystickY) > 0.1) {
@@ -3891,13 +3896,18 @@
         // Gentle floating bob
         unicornContainer.position.y += Math.sin(elapsed * 1.5) * 0.002;
 
-        // Clamp position — keep unicorn within the scene bounds
+        // Clamp position — keep unicorn within the visible play zone
         if (landscapeBox) {
-          const margin = 2;
-          const minY = landscapeBox.min.y + 0.5; // don't go below the river surface
+          const margin = 4; // inset from the edges of the scene
           unicornContainer.position.x = Math.max(landscapeBox.min.x + margin, Math.min(landscapeBox.max.x - margin, unicornContainer.position.x));
           unicornContainer.position.z = Math.max(landscapeBox.min.z + margin, Math.min(landscapeBox.max.z - margin, unicornContainer.position.z));
-          unicornContainer.position.y = Math.max(minY, Math.min(landscapeBox.max.y + 10, unicornContainer.position.y));
+        }
+        // Use the saved ground Y as the hard floor (not the scene bbox bottom which is underground)
+        if (unicornGroundY !== null) {
+          unicornContainer.position.y = Math.max(unicornGroundY, unicornContainer.position.y);
+          // Cap max height: don't fly too far above the scene
+          const maxY = unicornGroundY + 15;
+          unicornContainer.position.y = Math.min(maxY, unicornContainer.position.y);
         }
       }
 

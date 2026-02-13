@@ -58,6 +58,8 @@
     <button class="btn btn-pink" onclick="resetTimer()">🔄 Reset Timer (current life)</button>
     <button class="btn btn-red" onclick="drawWinner()">🎰 Draw Raffle Winner</button>
     <button class="btn btn-green" onclick="refresh()">🔄 Refresh</button>
+    <button class="btn" style="background:#6366f1;color:#fff;" onclick="backupDrawings()">💾 Backup All Drawings</button>
+    <div id="backupStatus" style="margin-top:0.5rem;font-size:0.85rem;color:#a0a0a0;"></div>
   </div>
 
   <h2>Start New Life</h2>
@@ -153,6 +155,23 @@ async function refresh() {
     showStatus('Refreshed', true);
   } catch (e) {
     showStatus('Error: ' + e.message, false);
+  }
+}
+
+async function backupDrawings() {
+  const status = document.getElementById('backupStatus');
+  status.textContent = '💾 Backing up all drawings from database to server...';
+  try {
+    const res = await fetch('/api/admin/backup-drawings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: ADMIN_KEY }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    status.innerHTML = `✅ Done! <b>${data.total_in_db}</b> drawings in DB, <b>${data.newly_backed_up}</b> newly backed up to server filesystem.`;
+  } catch (e) {
+    status.textContent = '❌ Backup failed: ' + e.message;
   }
 }
 
