@@ -528,7 +528,8 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
             task_response: (task_response || '').substring(0, 1000),
             completed: false,
             happiness_reward: 0,
-          }).catch(e => console.warn('Rejected task save error:', e.message));
+          });
+          // (errors silently ignored — rejected tasks are best-effort saves)
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
@@ -572,7 +573,7 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
             task_id: task.id,
             image_data,
             prompt: task_prompt || '',
-          }).catch(e => console.warn('Drawing save error:', e.message));
+          });
         }
 
         // Add raffle entry
