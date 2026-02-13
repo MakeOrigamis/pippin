@@ -2327,10 +2327,13 @@
       console.log('All animations loaded:', Object.keys(animations));
       dbg(`Loaded anims: ${Object.keys(animations).join(', ')}`);
 
-      // Ensure the built-in animation is always playing
-      if (animations.builtin && !currentAction) {
+      // Start with idle animation (not dancing)
+      if (animations.idle && currentAction !== animations.idle) {
+        playAnimation('idle');
+        dbg('Started idle animation (not dancing)');
+      } else if (animations.builtin && !currentAction) {
         playAnimation('builtin');
-        dbg('Started built-in animation');
+        dbg('Fallback: started built-in animation');
       }
 
       // Hide loading screen
@@ -2375,6 +2378,27 @@
 
       currentAction = action;
 
+    }
+
+    // ======================== HAPPY DANCE (triggered by task approval) ========================
+    let happyDanceTimer = null;
+    const celebrationAnims = ['samba', 'gangnam', 'backflip', 'walking'];
+
+    function triggerHappyDance() {
+      // Pick a fun dance animation
+      const available = celebrationAnims.filter(n => animations[n]);
+      if (available.length === 0) return;
+      const pick = available[Math.floor(Math.random() * available.length)];
+      playAnimation(pick);
+
+      // Return to idle after 4-6 seconds
+      if (happyDanceTimer) clearTimeout(happyDanceTimer);
+      happyDanceTimer = setTimeout(() => {
+        if (!isSpeaking) {
+          playAnimation(animations.idle ? 'idle' : 'builtin');
+        }
+        happyDanceTimer = null;
+      }, 4000 + Math.random() * 2000);
     }
 
     // ======================== DOC POPUP ========================
@@ -2669,8 +2693,8 @@
           unduckMusic();
           URL.revokeObjectURL(audioUrl);
           currentAudio = null;
-          if (animations.builtin && currentAction !== animations.builtin) {
-            playAnimation('builtin');
+          if (!happyDanceTimer) {
+            playAnimation(animations.idle ? 'idle' : 'builtin');
           }
         };
 
@@ -3328,6 +3352,7 @@
 
         if (data.success) {
           playSfx('complete');
+          triggerHappyDance(); // Pippin dances when someone makes him happy!
           const reactionEn = data.reaction?.en || 'yatta! good job desu!';
           const reactionJp = data.reaction?.jp || 'やったー！';
           taskReward.innerHTML = '<span style="color:#8bc34a">✅ Approved!</span> +' + (data.reward || 2) + ' happiness! ' + reactionEn;
@@ -3819,11 +3844,7 @@
     // Override updateHappiness
     updateHappiness = patchedUpdateHappiness;
 
-    // Play complete sfx when task reward appears
-    const taskRewardObserver = new MutationObserver(() => {
-      if (taskReward.textContent.includes('+')) playSfx('complete');
-    });
-    taskRewardObserver.observe(taskReward, { childList: true, characterData: true, subtree: true });
+    // SFX and dance now handled directly in completeTask() approval/rejection flow
   </script>
 </body>
 </html>
