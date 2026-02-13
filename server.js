@@ -36,64 +36,17 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('YOUR_')) {
 }
 
 // ======================== TASK TEMPLATES ========================
-const TASK_TEMPLATES = [
-  { type: 'draw', prompts: [
-    { jp: 'お花を描いてくれない？どんな花でもいいよ！', en: 'draw me flower ne? any kind is fine desu!' },
-    { jp: '虹を描いて！この世界みたいにカラフルなやつ！', en: 'draw rainbow! colorful like this sekai ne!' },
-    { jp: '私の顔を描いてみて！可愛く描いてね！', en: 'draw Pippin face desu! make it kawaii ne!' },
-    { jp: 'キノコを描いて！踊ってるやつがいい！', en: 'draw mushroom! dancing one onegai!' },
-    { jp: '星空を描いてくれる？きらきらしてるやつ！', en: 'draw starry sky ne? kirakira sparkly one!' },
-    { jp: 'バスタブに乗ったユニコーンを描いて。つまり私。', en: 'draw unicorn in bathtub desu. that is me.' },
-    { jp: 'ドラゴンを描いて！私の友達になるかも！', en: 'draw dragon desu! maybe become Pippin tomodachi!' },
-    { jp: 'ピザを描いて！めっちゃお腹空いてる！', en: 'draw pizza ne! Pippin meccha hungry desu!' },
-    { jp: '宇宙人を描いて！この世界にいそうじゃない？', en: 'draw alien desu! they probably live here desho?' },
-    { jp: '猫を描いて！猫大好き！ユニコーンだけど！', en: 'draw neko ne! Pippin love cats! even though unicorn desu!' },
-    { jp: 'ロケットを描いて！月まで飛びたい！', en: 'draw rocket desu! Pippin want fly to moon ne!' },
-    { jp: 'お城を描いて！私のお城！ピピン城！', en: 'draw castle ne! Pippin castle! Pippin-jou desu!' },
-    { jp: '自分の顔を描いて！どんな顔してるの？', en: 'draw YOUR face ne! what do you look like desho?' },
-    { jp: 'おにぎりを描いて！三角のやつ！', en: 'draw onigiri desu! triangle one ne!' },
-    { jp: 'この川を描いて！虹色にしてね！', en: 'draw this river ne! make it rainbow iro desu!' },
-    { jp: '一番好きな動物を描いて！私以外で！', en: 'draw favorite animal ne! other than Pippin desu!' },
-    { jp: 'ゾンビを描いて！可愛いゾンビね！怖いのはダメ！', en: 'draw zombie desu! kawaii zombie ne! scary one dame!' },
-    { jp: '自分の夢を描いて！どんな夢見るの？', en: 'draw your yume ne! what do you dream about desho?' },
-    { jp: 'タコを描いて！足が８本あるやつ！', en: 'draw tako desu! the one with 8 legs ne!' },
-    { jp: 'ラーメンを描いて！チャーシュー多めで！', en: 'draw ramen ne! extra chashu onegai desu!' },
-    { jp: 'UFOを描いて！この世界に来てほしい！', en: 'draw UFO desu! Pippin want them come here ne!' },
-    { jp: '一番面白い顔を描いて！爆笑させて！', en: 'draw funniest face ever ne! make Pippin bakushou!' },
-    { jp: 'サメを描いて！でも優しいサメね！', en: 'draw shark desu! but yasashii kind one ne!' },
-    { jp: 'ケーキを描いて！今日は誰かの誕生日かも！', en: 'draw cake ne! maybe someone birthday today desu!' },
-  ]},
-  { type: 'haiku', prompts: [
-    { jp: '俳句を詠んで！テーマは「川」で！', en: 'write a haiku! theme is "river"!' },
-    { jp: '俳句を詠んで！テーマは「ユニコーン」で！', en: 'write a haiku! theme is "unicorn"!' },
-    { jp: '俳句を詠んで！テーマは「夢」で！', en: 'write a haiku! theme is "dreams"!' },
-  ]},
-  { type: 'compliment', prompts: [
-    { jp: '私に褒め言葉を言って！ツノが素敵とか！', en: 'give me a compliment! like my horn is nice!' },
-    { jp: '世界で一番いいところを教えて！', en: 'tell me the best thing about this world!' },
-    { jp: '何か元気になる言葉をちょうだい！', en: 'give me something uplifting!' },
-  ]},
-  { type: 'story', prompts: [
-    { jp: '短い物語を聞かせて！一文でいいよ！', en: 'tell me a short story! one sentence is fine!' },
-    { jp: 'もし私が人間だったらどうなると思う？', en: 'what do you think would happen if I was human?' },
-    { jp: 'この世界の秘密を一つ教えて！', en: 'tell me one secret about this world!' },
-  ]},
-  { type: 'dance', prompts: [
-    { jp: '10秒間踊って！WASDで動くだけでOK！', en: 'dance for 10 seconds! just move with WASD!' },
-    { jp: 'ジャンプして！スペースキーで飛んで！', en: 'jump! fly up with spacebar!' },
-    { jp: 'ぐるぐる回って！楽しいでしょ？', en: 'spin around! fun right?' },
-  ]},
-  { type: 'explore', prompts: [
-    { jp: '川を見つけて！虹色のやつ！', en: 'find the river! the rainbow one!' },
-    { jp: 'キノコの人たちのところまで飛んでいって！', en: 'fly to where the mushroom people are!' },
-    { jp: 'この世界の一番高い場所に行ってみて！', en: 'go to the highest point in this world!' },
-  ]},
-];
+const { TASK_TEMPLATES } = require('./tasks.js');
+
+// Flatten all prompts into a single pool for truly random selection
+const ALL_TASKS = [];
+TASK_TEMPLATES.forEach(cat => {
+  cat.prompts.forEach(p => ALL_TASKS.push({ type: cat.type, ...p }));
+});
+console.log(`Loaded ${ALL_TASKS.length} unique task prompts across ${TASK_TEMPLATES.length} categories`);
 
 function getRandomTask() {
-  const category = TASK_TEMPLATES[Math.floor(Math.random() * TASK_TEMPLATES.length)];
-  const prompt = category.prompts[Math.floor(Math.random() * category.prompts.length)];
-  return { type: category.type, ...prompt };
+  return ALL_TASKS[Math.floor(Math.random() * ALL_TASKS.length)];
 }
 
 // Helper: parse JSON body from request
