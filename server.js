@@ -444,14 +444,35 @@ DIFFICULTY LEVEL: ${difficultyNote}
 The task was: "${task_prompt || task_type}"
 Task type: ${task_type}
 
-JUDGE the submission and REACT to it in character. You must reply with ONLY valid JSON:
-{"approved": true/false, "jp": "your reaction in Japanese", "en": "your reaction in cute Japanese-accented English"}
+JUDGE the submission, RATE its quality, and REACT in character. You must reply with ONLY valid JSON:
+{"approved": true/false, "quality": 1-5, "jp": "your reaction in Japanese", "en": "your reaction in cute Japanese-accented English"}
 
-If APPROVED: be encouraging, cute, mention what you liked about it.
-If REJECTED: explain WHY in a fun way (not mean), encourage them to try harder. Be specific about what's wrong.
+QUALITY RATING (1-5 stars):
+- 1 star: Minimal effort, barely meets the prompt. Just enough to not be rejected.
+- 2 stars: Basic attempt, on topic but simple/rushed.
+- 3 stars: Good effort! Clearly tried and it shows. Average quality.
+- 4 stars: Great work! Creative, detailed, or shows real skill. Above average.
+- 5 stars: SUGOI! Exceptional quality, creative, beautiful, or truly impressive. Rare — only for outstanding submissions.
 
-Examples of rejection reasons: blank/empty drawing, random letters instead of real response, completely unrelated to prompt, zero effort.
-Examples of approval: any genuine attempt that relates to the prompt.`;
+For DRAWINGS specifically:
+- 1 star: Rough scribble that vaguely relates to prompt
+- 2 stars: Simple recognizable drawing, basic shapes/colors
+- 3 stars: Decent drawing with multiple colors, clear subject
+- 4 stars: Detailed, creative interpretation, good use of colors
+- 5 stars: Genuinely impressive artwork, beautiful or very creative
+
+For TEXT tasks (haiku, story, compliment, joke, etc.):
+- 1 star: Very short, generic, minimal effort
+- 2 stars: On-topic but plain
+- 3 stars: Thoughtful, shows effort
+- 4 stars: Creative, well-written, engaging
+- 5 stars: Outstanding creativity, wit, or emotional depth
+
+If APPROVED: mention the quality level in your reaction. Be more excited for higher quality!
+If REJECTED: explain WHY in a fun way (not mean), encourage them to try harder.
+
+Examples of rejection: blank/empty drawing, random keyboard mashing, completely unrelated to prompt, zero effort.
+Examples of approval: any genuine attempt that relates to the prompt (even 1-star attempts pass).`;
 
           try {
             let userContent;
@@ -511,7 +532,10 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
 
             approved = verdict.approved !== false; // default to approved if parsing issue
             reaction = { jp: verdict.jp || 'にゃー！', en: verdict.en || 'nyaa!' };
-            console.log(`AI Judge: ${task_type} task ${approved ? 'APPROVED' : 'REJECTED'} (Life ${lifeNum})`);
+            // Quality score: 1-5 stars, default 3 if not provided
+            const qualityScore = Math.max(1, Math.min(5, parseInt(verdict.quality) || 3));
+            reaction.quality = qualityScore;
+            console.log(`AI Judge: ${task_type} task ${approved ? 'APPROVED' : 'REJECTED'} ★${qualityScore} (Life ${lifeNum})`);
           } catch (judgeErr) {
             console.warn('AI judge error, auto-approving:', judgeErr.message);
             approved = true; // fail-open: if AI breaks, approve
@@ -580,10 +604,15 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
           return;
         }
 
-        // ---- APPROVED: award rewards ----
+        // ---- APPROVED: award rewards scaled by quality ----
+        // Quality multiplier: ★1=0.4x, ★2=0.7x, ★3=1.0x, ★4=1.5x, ★5=2.5x
+        const qualityMultipliers = { 1: 0.4, 2: 0.7, 3: 1.0, 4: 1.5, 5: 2.5 };
+        const quality = reaction.quality || 3;
+        const qualityMult = qualityMultipliers[quality] || 1.0;
         const baseReward = task_type === 'draw' ? 3 : 2;
         const lifeScale = lifeNum <= 1 ? 1 : lifeNum <= 2 ? 0.7 : lifeNum <= 3 ? 0.45 : lifeNum <= 4 ? 0.3 : lifeNum <= 5 ? 0.2 : 0.12;
-        const happinessReward = Math.max(0.2, Math.round(baseReward * lifeScale * 10) / 10);
+        const happinessReward = Math.max(0.2, Math.round(baseReward * lifeScale * qualityMult * 10) / 10);
+        console.log(`Reward: base=${baseReward} × life=${lifeScale} × quality=${qualityMult}(★${quality}) = ${happinessReward}`);
 
         // Create task record
         const { data: task, error: taskError } = await supabase
@@ -628,18 +657,20 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
           })
           .eq('id', 1);
 
-        // Post activity to global chat
+        // Post activity to global chat (with star rating)
+        const starStr = '★'.repeat(quality) + '☆'.repeat(5 - quality);
         const typeLabels = { draw: '🎨 drew something', haiku: '✍️ wrote a haiku', compliment: '💕 gave a compliment', story: '📖 told a story', dance: '💃 danced', explore: '🗺️ explored', trivia: '🧠 shared trivia', joke: '😂 told a joke', wish: '⭐ made a wish', opinion: '💬 shared an opinion' };
+        const activityMsg = (typeLabels[task_type] || `completed a ${task_type} task`) + ` ${starStr}`;
         supabase.from('chat_messages').insert({
           wallet_address: wallet,
           display_name: participant.display_name || 'explorer',
-          message: typeLabels[task_type] || `completed a ${task_type} task`,
+          message: activityMsg,
           message_type: 'activity',
         }).then(() => {}).catch(() => {});
 
-        console.log(`Task completed: ${wallet} did "${task_type}" (+${happinessReward} happiness) [APPROVED]`);
+        console.log(`Task completed: ${wallet} did "${task_type}" ★${quality} (+${happinessReward} happiness) [APPROVED]`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, approved: true, reaction, happiness: newHappiness, reward: happinessReward }));
+        res.end(JSON.stringify({ success: true, approved: true, reaction, happiness: newHappiness, reward: happinessReward, quality }));
       } catch (e) {
         console.error('Task complete error:', e.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });

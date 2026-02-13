@@ -4264,7 +4264,10 @@
           triggerHappyDance(); // Pippin dances when someone makes him happy!
           const reactionEn = data.reaction?.en || 'yatta! good job desu!';
           const reactionJp = data.reaction?.jp || 'やったー！';
-          taskReward.innerHTML = '<span style="color:#8bc34a">✅ Approved!</span> +' + (data.reward || 2) + ' happiness! ' + reactionEn;
+          const q = data.quality || 3;
+          const stars = '★'.repeat(q) + '☆'.repeat(5 - q);
+          const starColor = q >= 5 ? '#ffd700' : q >= 4 ? '#8bc34a' : q >= 3 ? '#4fc3f7' : '#c4956a';
+          taskReward.innerHTML = `<span style="color:${starColor}">${stars}</span> <span style="color:#8bc34a">Approved!</span> +${data.reward || 2} happiness! ${reactionEn}`;
 
           // Add share-on-X button for drawing tasks
           if (currentTask.type === 'draw') {
