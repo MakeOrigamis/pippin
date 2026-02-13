@@ -1154,6 +1154,7 @@
       .top-logo { font-size: 0.7rem; }
       .timer { font-size: 0.75rem; }
       .ranking-btn { display: none; }
+      .lang-toggle-btn { display: inline-block !important; font-size: 0.6rem !important; padding: 0.2rem 0.4rem !important; }
       .intro-title { font-size: 1.4rem; }
       .task-panel { width: 170px; }
       .wallet-panel { width: 170px; }
@@ -1266,6 +1267,7 @@
         </div>
       </div>
       <button class="ranking-btn" id="rankingBtn">&#127942; ランキング</button>
+      <button class="ranking-btn lang-toggle-btn" id="langToggle" title="Speaking Japanese">🇯🇵 JP</button>
     </div>
   </div>
 
@@ -2267,10 +2269,19 @@
       }, 300);
     }
 
-    // Dual function: show English in bubble, speak Japanese via TTS
+    // Language mode: 'jp' = speak Japanese, bubble English | 'en' = speak English (JP accent), bubble English
+    let langMode = 'jp';
+    const langToggleBtn = document.getElementById('langToggle');
+    langToggleBtn.addEventListener('click', () => {
+      langMode = langMode === 'jp' ? 'en' : 'jp';
+      langToggleBtn.textContent = langMode === 'jp' ? '🇯🇵 JP' : '🇬🇧 EN';
+      langToggleBtn.title = langMode === 'jp' ? 'Speaking Japanese' : 'Speaking English (Japanese accent)';
+    });
+
+    // Dual function: show text in bubble, speak via TTS based on language mode
     function pippinSay(jp, en) {
       showPippinSpeech(en);
-      speakText(jp);
+      speakText(langMode === 'jp' ? jp : en);
     }
 
     // Text-to-speech via ElevenLabs (proxied through our server) - speaks Japanese
