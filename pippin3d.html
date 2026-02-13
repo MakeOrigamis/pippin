@@ -591,7 +591,7 @@
     .login-btn {
       position: fixed;
       bottom: 120px;
-      left: 335px;
+      left: 280px;
       z-index: 16;
       background: linear-gradient(135deg, rgba(232, 160, 191, 0.25), rgba(196, 149, 106, 0.25));
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -614,7 +614,7 @@
     .wallet-panel {
       position: fixed;
       bottom: 120px;
-      left: 335px;
+      left: 280px;
       z-index: 16;
       background: rgba(26, 20, 16, 0.9);
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -707,12 +707,14 @@
 
     /* ======================== GLOBAL CHAT PANEL ======================== */
     .gchat-panel {
-      position: fixed; left: 0; top: 46px; bottom: 0;
-      width: 320px; z-index: 25;
-      background: rgba(26, 20, 16, 0.88);
-      border-right: 1px solid rgba(232, 213, 196, 0.1);
+      position: fixed; left: 8px; top: 52px; bottom: 8px;
+      width: 260px; z-index: 25;
+      background: rgba(26, 20, 16, 0.75);
+      border: 1px solid rgba(232, 213, 196, 0.1);
+      border-radius: 12px;
       display: flex; flex-direction: column;
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      overflow: hidden;
     }
     .gchat-header {
       padding: 0.4rem 0.7rem; font-size: 0.7rem; color: #c4956a;
@@ -1348,8 +1350,9 @@
       /* Global chat: collapsible on mobile */
       .gchat-panel {
         display: none;
-        width: 85vw; max-width: 320px;
+        width: 85vw; max-width: 260px;
         z-index: 30;
+        left: 4px; top: 48px; bottom: 4px;
       }
       .gchat-toggle { display: block; }
     }
@@ -2837,16 +2840,21 @@
       return div;
     }
 
+    function showEmptyChatHint() {
+      gchatMessages.innerHTML = '<div class="gchat-msg type-activity" style="text-align:center;padding:1rem 0.5rem;">No messages yet ne... be the first to chat desu! 🦄<br><span style="font-size:0.5rem;opacity:0.5">Type @pippin to talk to Pippin</span></div>';
+    }
+
     async function loadGlobalChat() {
       try {
         const res = await fetch('/api/chat/global');
-        if (!res.ok) return;
+        if (!res.ok) { showEmptyChatHint(); return; }
         const messages = await res.json();
+        if (!messages || messages.length === 0) { showEmptyChatHint(); return; }
         gchatMessages.innerHTML = '';
         messages.forEach(m => gchatMessages.appendChild(renderChatMessage(m)));
         gchatMessages.scrollTop = gchatMessages.scrollHeight;
         if (messages.length > 0) lastChatMsgId = messages[messages.length - 1].id;
-      } catch(e) { console.warn('Chat load error:', e); }
+      } catch(e) { console.warn('Chat load error:', e); showEmptyChatHint(); }
     }
 
     async function pollChat() {

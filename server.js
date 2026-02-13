@@ -1053,8 +1053,9 @@ ONLY output the JSON. No markdown, no code blocks.`;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data || []));
     } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
+      console.warn('Chat GET error (table may not exist yet):', e.message);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify([]));
     }
     return;
   }
@@ -1156,9 +1157,9 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, pippin: pippinReply }));
     } catch (e) {
-      console.error('Global chat error:', e.message);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
+      console.warn('Global chat error (table may not exist yet):', e.message);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
     }
     return;
   }
