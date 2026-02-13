@@ -542,7 +542,12 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
         }
 
         // ---- APPROVED: award rewards ----
-        const happinessReward = task_type === 'draw' ? 3 : 2;
+        // Happiness fills slower in later lives:
+        // Life 1: +3/+2, Life 2: +2/+1.5, Life 3: +1.5/+1, Life 4+: +1/+0.5
+        // This means Life 1 needs ~40 tasks, Life 3 needs ~80, Life 5+ needs ~150+
+        const baseReward = task_type === 'draw' ? 3 : 2;
+        const lifeScale = lifeNum <= 1 ? 1 : lifeNum <= 2 ? 0.7 : lifeNum <= 3 ? 0.45 : lifeNum <= 4 ? 0.3 : lifeNum <= 5 ? 0.2 : 0.12;
+        const happinessReward = Math.max(0.2, Math.round(baseReward * lifeScale * 10) / 10);
 
         // Create task record
         const { data: task } = await supabase
@@ -585,8 +590,8 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
           })
           .eq('id', participant.id);
 
-        // Update global happiness
-        const newHappiness = Math.min(100, (globalState?.happiness || 0) + happinessReward);
+        // Update global happiness (round since DB column is INT)
+        const newHappiness = Math.min(100, Math.round((globalState?.happiness || 0) + happinessReward));
         await supabase
           .from('global_state')
           .update({
