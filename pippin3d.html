@@ -355,6 +355,46 @@
       border-color: rgba(232, 213, 196, 0.5);
     }
 
+    .ca-link {
+      display: inline-block;
+      margin-top: 1rem;
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: rgba(232, 213, 196, 0.5);
+      background: rgba(26, 20, 16, 0.4);
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      border: 1px solid rgba(232, 213, 196, 0.15);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      word-break: break-all;
+      max-width: 400px;
+    }
+    .ca-link:hover {
+      color: #e8a0bf;
+      border-color: rgba(232, 160, 191, 0.4);
+      background: rgba(232, 160, 191, 0.1);
+    }
+    .ca-label { font-family: 'Quicksand', sans-serif; font-size: 0.65rem; color: rgba(232, 213, 196, 0.35); margin-top: 0.6rem; }
+    .ca-header {
+      font-family: monospace;
+      font-size: 0.6rem;
+      color: rgba(232, 213, 196, 0.45);
+      background: rgba(26, 20, 16, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid rgba(232, 213, 196, 0.1);
+      transition: all 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+    .ca-header:hover { color: #e8a0bf; border-color: rgba(232, 160, 191, 0.3); }
+
     .intro-enter .pulse {
       display: inline-block;
       animation: pulse 2s ease-in-out infinite;
@@ -1119,6 +1159,9 @@
       .timer { font-size: 0.75rem; }
       .ranking-btn { display: none; }
       .lang-toggle-btn { display: inline-block !important; font-size: 0.6rem !important; padding: 0.2rem 0.4rem !important; }
+      .ca-header { display: none; }
+      .ca-link { font-size: 0.55rem; padding: 0.3rem 0.5rem; max-width: 280px; }
+      .ca-label { font-size: 0.55rem; }
       .intro-title { font-size: 1.4rem; }
       .task-panel { width: 170px; }
       .wallet-panel { width: 170px; }
@@ -1172,6 +1215,8 @@
 
     <button class="intro-enter" id="introEnter"><span class="pulse">&#9654;</span>&nbsp; 入る</button>
     <button class="intro-info-btn" id="introInfoBtn">?&nbsp; これは何？</button>
+    <div class="ca-label">CA (Solana)</div>
+    <a class="ca-link" id="caLinkIntro" href="https://pump.fun/coin/4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump" target="_blank" rel="noopener">4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump</a>
   </div>
 
   <!-- Doc / Info Popup -->
@@ -1255,6 +1300,7 @@
       </div>
       <button class="ranking-btn" id="rankingBtn">&#127942; ランキング</button>
       <button class="ranking-btn lang-toggle-btn" id="langToggle" title="Speaking Japanese">🇯🇵 JP</button>
+      <a class="ca-header" id="caLinkHeader" href="https://pump.fun/coin/4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump" target="_blank" rel="noopener" title="CA: 4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump">CA: 4srVZ...spump</a>
     </div>
   </div>
 
@@ -2161,6 +2207,22 @@
     });
     document.getElementById('docClose').addEventListener('click', () => {
       document.getElementById('docOverlay').classList.remove('show');
+    });
+
+    // CA copy-to-clipboard on click (prevent navigation, copy instead)
+    const CA = '4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump';
+    document.querySelectorAll('.ca-link, .ca-header').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigator.clipboard.writeText(CA).then(() => {
+          const orig = el.textContent;
+          el.textContent = 'Copied! ✓';
+          el.style.color = '#66bb6a';
+          setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1500);
+        }).catch(() => {
+          window.open(el.href, '_blank');
+        });
+      });
     });
     document.getElementById('docOverlay').addEventListener('click', (e) => {
       if (e.target === document.getElementById('docOverlay')) {
