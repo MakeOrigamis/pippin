@@ -1044,16 +1044,32 @@ ONLY output the JSON. No markdown, no code blocks.`;
       return;
     }
     try {
-      // Fetch last 50 messages from the past 24h
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .gte('created_at', since)
-        .order('created_at', { ascending: true })
-        .limit(50);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data || []));
+      const url = new URL(req.url, 'http://localhost');
+      const archive = url.searchParams.get('archive') === '1';
+
+      if (archive) {
+        // Archive: messages older than 6 minutes, last 100
+        const cutoff = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+        const { data } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .lt('created_at', cutoff)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify((data || []).reverse()));
+      } else {
+        // Live chat: only messages from last 6 minutes
+        const since = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+        const { data } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .gte('created_at', since)
+          .order('created_at', { ascending: true })
+          .limit(50);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data || []));
+      }
     } catch (e) {
       console.warn('Chat GET error (table may not exist yet):', e.message);
       res.writeHead(200, { 'Content-Type': 'application/json' });

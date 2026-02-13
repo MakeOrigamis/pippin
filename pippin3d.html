@@ -1747,7 +1747,7 @@
 
   <!-- Global Chat Panel -->
   <div class="gchat-panel" id="gchatPanel">
-    <div class="gchat-header">💬 Global Chat <span style="opacity:0.5;font-size:0.55rem">use @pippin to talk to Pippin</span></div>
+    <div class="gchat-header">💬 Chat <span style="opacity:0.5;font-size:0.5rem">@pippin</span> <button id="chatArchiveBtn" onclick="showChatArchive()" style="float:right;background:rgba(232,213,196,0.1);border:1px solid rgba(232,213,196,0.15);color:#E8D5C4;font-size:0.45rem;padding:2px 6px;border-radius:4px;cursor:pointer;font-family:'Baloo 2',cursive;">📜 Archive</button></div>
     <div class="gchat-puzzle" id="gchatPuzzle" style="display:none">
       <div class="gchat-puzzle-title">🧩 GROUP PUZZLE</div>
       <div class="gchat-puzzle-prompt" id="puzzlePrompt"></div>
@@ -2918,7 +2918,7 @@
     const gchatMessages = document.getElementById('gchatMessages');
     const gchatInput = document.getElementById('gchatInput');
     const gchatSend = document.getElementById('gchatSend');
-    let lastChatMsgId = null;
+    let lastChatHash = '';
     let chatPollTimer = null;
 
     function formatChatTime(ts) {
@@ -2943,16 +2943,22 @@
       gchatMessages.innerHTML = '<div class="gchat-msg type-activity" style="text-align:center;padding:1rem 0.5rem;">No messages yet ne... be the first to chat desu! 🦄<br><span style="font-size:0.5rem;opacity:0.5">Type @pippin to talk to Pippin</span></div>';
     }
 
+    function chatHash(messages) {
+      // Quick hash: count + first id + last id to detect any changes
+      if (!messages || messages.length === 0) return '0';
+      return messages.length + ':' + messages[0].id + ':' + messages[messages.length - 1].id;
+    }
+
     async function loadGlobalChat() {
       try {
         const res = await fetch('/api/chat/global');
         if (!res.ok) { showEmptyChatHint(); return; }
         const messages = await res.json();
-        if (!messages || messages.length === 0) { showEmptyChatHint(); return; }
+        if (!messages || messages.length === 0) { showEmptyChatHint(); lastChatHash = '0'; return; }
         gchatMessages.innerHTML = '';
         messages.forEach(m => gchatMessages.appendChild(renderChatMessage(m)));
         gchatMessages.scrollTop = gchatMessages.scrollHeight;
-        if (messages.length > 0) lastChatMsgId = messages[messages.length - 1].id;
+        lastChatHash = chatHash(messages);
       } catch(e) { console.warn('Chat load error:', e); showEmptyChatHint(); }
     }
 
@@ -2961,16 +2967,58 @@
         const res = await fetch('/api/chat/global');
         if (!res.ok) return;
         const messages = await res.json();
-        if (messages.length === 0) return;
-        const lastId = messages[messages.length - 1].id;
-        if (lastId !== lastChatMsgId) {
-          gchatMessages.innerHTML = '';
-          messages.forEach(m => gchatMessages.appendChild(renderChatMessage(m)));
-          gchatMessages.scrollTop = gchatMessages.scrollHeight;
-          lastChatMsgId = lastId;
+        const newHash = chatHash(messages);
+        if (newHash !== lastChatHash) {
+          if (!messages || messages.length === 0) { showEmptyChatHint(); }
+          else {
+            gchatMessages.innerHTML = '';
+            messages.forEach(m => gchatMessages.appendChild(renderChatMessage(m)));
+            gchatMessages.scrollTop = gchatMessages.scrollHeight;
+          }
+          lastChatHash = newHash;
         }
       } catch(e) {}
     }
+
+    // ---- CHAT ARCHIVE ----
+    window.showChatArchive = async function() {
+      // Remove existing overlay
+      document.getElementById('chatArchiveOverlay')?.remove();
+      try {
+        const res = await fetch('/api/chat/global?archive=1');
+        if (!res.ok) return;
+        const messages = await res.json();
+        const overlay = document.createElement('div');
+        overlay.id = 'chatArchiveOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:300;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:rgba(26,20,16,0.95);border:1px solid rgba(232,160,191,0.3);border-radius:12px;width:90vw;max-width:500px;max-height:80vh;display:flex;flex-direction:column;font-family:"Baloo 2",cursive;';
+        let header = '<div style="padding:0.6rem 1rem;border-bottom:1px solid rgba(232,213,196,0.1);display:flex;justify-content:space-between;align-items:center;">';
+        header += '<span style="color:#c4956a;font-size:0.8rem;">📜 Chat Archive</span>';
+        header += '<button onclick="document.getElementById(\'chatArchiveOverlay\').remove()" style="background:none;border:none;color:#e85a5a;font-size:1rem;cursor:pointer;">✕</button></div>';
+        let body = '<div style="flex:1;overflow-y:auto;padding:0.6rem;">';
+        if (!messages || messages.length === 0) {
+          body += '<div style="text-align:center;color:rgba(232,213,196,0.4);padding:2rem;font-size:0.7rem;">No archived messages yet</div>';
+        } else {
+          messages.forEach(m => {
+            const time = formatChatTime(m.created_at);
+            const dateStr = new Date(m.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' });
+            if (m.message_type === 'activity') {
+              body += `<div style="font-size:0.5rem;color:rgba(232,213,196,0.4);margin:2px 0;"><span style="opacity:0.6">${dateStr} ${time}</span> ${m.display_name || 'explorer'} ${m.message}</div>`;
+            } else if (m.message_type === 'pippin') {
+              body += `<div style="font-size:0.55rem;color:#e8a0bf;margin:3px 0;"><span style="opacity:0.5">${dateStr} ${time}</span> 🦄 Pippin: ${m.message}</div>`;
+            } else {
+              body += `<div style="font-size:0.55rem;color:#E8D5C4;margin:3px 0;"><span style="opacity:0.5">${dateStr} ${time}</span> <span style="color:#e8a0bf;">${m.display_name || 'explorer'}:</span> ${m.message}</div>`;
+            }
+          });
+        }
+        body += '</div>';
+        box.innerHTML = header + body;
+        overlay.appendChild(box);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+      } catch(e) { console.warn('Archive error:', e); }
+    };
 
     window.sendGlobalChat = sendGlobalChat;
     async function sendGlobalChat() {
@@ -3029,7 +3077,7 @@
 
     // Start chat polling
     loadGlobalChat();
-    chatPollTimer = setInterval(pollChat, 5000);
+    chatPollTimer = setInterval(pollChat, 3000);
 
     // ======================== GROUP PUZZLE ========================
     let currentPuzzle = null;
