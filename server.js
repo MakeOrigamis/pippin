@@ -1194,27 +1194,26 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
       const lifeNum = state?.current_life || 1;
 
       // Find active (not completed) puzzle for current life
-      let { data: puzzle } = await supabase
+      const { data: activePuzzles } = await supabase
         .from('group_puzzles')
         .select('*')
         .eq('life_number', lifeNum)
         .eq('completed', false)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
+      let puzzle = (activePuzzles && activePuzzles.length > 0) ? activePuzzles[0] : null;
 
       // If no active puzzle, create one — rotate through puzzle types
       if (!puzzle) {
-        // Find the last completed puzzle's type to determine which type is next
+        // Find the last puzzle's type (completed or not) to determine which type is next
         let nextType = PUZZLE_TYPES_ORDER[0];
-        const { data: lastPuzzle } = await supabase
+        const { data: lastPuzzles } = await supabase
           .from('group_puzzles')
           .select('puzzle_type')
           .eq('life_number', lifeNum)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
-          .catch(() => ({ data: null }));
+          .limit(1);
+        const lastPuzzle = (lastPuzzles && lastPuzzles.length > 0) ? lastPuzzles[0] : null;
         if (lastPuzzle) {
           const lastIdx = PUZZLE_TYPES_ORDER.indexOf(lastPuzzle.puzzle_type);
           nextType = PUZZLE_TYPES_ORDER[(lastIdx + 1) % PUZZLE_TYPES_ORDER.length];

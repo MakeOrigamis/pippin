@@ -3226,14 +3226,24 @@
     const puzzleContribsEl = document.getElementById('puzzleContribs');
     const puzzleContributeBtn = document.getElementById('puzzleContributeBtn');
 
+    let puzzleCompleteShown = false;
+
     async function loadPuzzle() {
       try {
         const res = await fetch('/api/puzzle');
         if (!res.ok) return;
         const data = await res.json();
         if (data.puzzle) {
+          const isNew = !currentPuzzle || currentPuzzle.id !== data.puzzle.id;
           currentPuzzle = data.puzzle;
+          puzzleCompleteShown = false;
           renderPuzzle();
+          if (isNew) {
+            // Flash the puzzle section to draw attention
+            puzzleEl.style.transition = 'background 0.5s';
+            puzzleEl.style.background = 'rgba(139,195,74,0.15)';
+            setTimeout(() => { puzzleEl.style.background = ''; }, 1500);
+          }
         } else {
           puzzleEl.style.display = 'none';
           currentPuzzle = null;
@@ -3254,6 +3264,20 @@
     function renderPuzzle() {
       if (!currentPuzzle) { puzzleEl.style.display = 'none'; return; }
       puzzleEl.style.display = 'block';
+
+      // If puzzle is completed, show completion state and auto-load next
+      if (currentPuzzle.completed && !puzzleCompleteShown) {
+        puzzleCompleteShown = true;
+        puzzlePromptEl.innerHTML = '🎉 <span style="color:#8bc34a;">Puzzle Complete!</span><br><span style="font-size:0.55rem;opacity:0.6;">Next puzzle loading in a few seconds...</span>';
+        puzzleGridContainer.innerHTML = '';
+        puzzleContribsEl.innerHTML = '';
+        puzzleContributeBtn.style.display = 'none';
+        puzzleBarEl.style.width = '100%';
+        puzzleCountEl.textContent = '✅';
+        setTimeout(loadPuzzle, 5000);
+        return;
+      }
+
       puzzlePromptEl.innerHTML = currentPuzzle.prompt_en + '<br><span style="font-size:0.55rem;opacity:0.45">' + currentPuzzle.prompt_jp + '</span>';
 
       const contribs = getPuzzleContribs();
@@ -3616,7 +3640,12 @@
             setTimeout(() => msg.remove(), 8000);
           } else if (data.completed) {
             playSfx('complete');
-            setTimeout(loadPuzzle, 3000);
+            // Mark current puzzle as completed to trigger the completion state
+            if (currentPuzzle) {
+              currentPuzzle.completed = true;
+              if (data.contributions) currentPuzzle.contributions = data.contributions;
+            }
+            renderPuzzle(); // shows "Puzzle Complete!" state, auto-loads next in 5s
           } else if (data.contributions) {
             currentPuzzle.current_count = data.count;
             currentPuzzle.contributions = data.contributions;
@@ -3631,7 +3660,7 @@
 
     // Load puzzle on start and poll
     loadPuzzle();
-    setInterval(loadPuzzle, 30000); // Refresh puzzle every 30s
+    setInterval(loadPuzzle, 10000); // Refresh puzzle every 10s for faster transitions
 
     // Mobile toggle
     window.toggleChatPanel = toggleChatPanel;
