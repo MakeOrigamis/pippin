@@ -737,6 +737,12 @@
     }
 
     .color-btn:hover, .color-btn.active { transform: scale(1.2); border-color: #E8D5C4; }
+    .eraser-btn {
+      background: #fff !important;
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+      color: #333; position: relative;
+    }
+    .eraser-btn.active { border-color: #ef5350 !important; box-shadow: 0 0 6px rgba(239, 83, 80, 0.4); }
 
     .canvas-actions {
       display: flex;
@@ -1467,6 +1473,7 @@
       <button class="color-btn" style="background:#E84040" data-color="#E84040"></button>
       <button class="color-btn" style="background:#C5B8E8" data-color="#C5B8E8"></button>
       <button class="color-btn" style="background:#fff" data-color="#FFFFFF"></button>
+      <button class="color-btn eraser-btn" id="eraserBtn" data-color="eraser" title="Eraser">&#9003;</button>
     </div>
     <div class="canvas-actions">
       <button class="task-btn secondary" id="canvasClear">消す (clear)</button>
@@ -3112,6 +3119,7 @@
     const drawCtx = drawCanvas.getContext('2d');
     let drawColor = '#000';
     let isDrawing = false;
+    let isEraser = false;
 
     function openDrawCanvas() {
       canvasOverlay.classList.add('show');
@@ -3127,7 +3135,12 @@
       btn.addEventListener('click', () => {
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        drawColor = btn.dataset.color;
+        if (btn.dataset.color === 'eraser') {
+          isEraser = true;
+        } else {
+          isEraser = false;
+          drawColor = btn.dataset.color;
+        }
       });
     });
 
@@ -3141,14 +3154,18 @@
       };
     }
 
+    function getDrawStyle() {
+      return { color: isEraser ? '#FFFFFF' : drawColor, width: isEraser ? 18 : 3 };
+    }
+
     drawCanvas.addEventListener('mousedown', (e) => { isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
-    drawCanvas.addEventListener('mousemove', (e) => { if (!isDrawing) return; const p = getDrawPos(e); drawCtx.lineWidth = 3; drawCtx.lineCap = 'round'; drawCtx.strokeStyle = drawColor; drawCtx.lineTo(p.x, p.y); drawCtx.stroke(); });
+    drawCanvas.addEventListener('mousemove', (e) => { if (!isDrawing) return; const p = getDrawPos(e); const s = getDrawStyle(); drawCtx.lineWidth = s.width; drawCtx.lineCap = 'round'; drawCtx.strokeStyle = s.color; drawCtx.lineTo(p.x, p.y); drawCtx.stroke(); });
     drawCanvas.addEventListener('mouseup', () => { isDrawing = false; });
     drawCanvas.addEventListener('mouseleave', () => { isDrawing = false; });
 
     // Touch support
     drawCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
-    drawCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDrawing) return; const p = getDrawPos(e); drawCtx.lineWidth = 3; drawCtx.lineCap = 'round'; drawCtx.strokeStyle = drawColor; drawCtx.lineTo(p.x, p.y); drawCtx.stroke(); });
+    drawCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDrawing) return; const p = getDrawPos(e); const s = getDrawStyle(); drawCtx.lineWidth = s.width; drawCtx.lineCap = 'round'; drawCtx.strokeStyle = s.color; drawCtx.lineTo(p.x, p.y); drawCtx.stroke(); });
     drawCanvas.addEventListener('touchend', () => { isDrawing = false; });
 
     document.getElementById('canvasClear').addEventListener('click', () => {
