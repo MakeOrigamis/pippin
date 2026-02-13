@@ -732,6 +732,41 @@ ONLY output the JSON. No markdown, no code blocks.`;
     return;
   }
 
+  // Admin: start a specific life number
+  if (req.url === '/api/admin/start-life' && req.method === 'POST') {
+    const body = await parseBody(req);
+    if (body.key !== ADMIN_KEY) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid admin key' }));
+      return;
+    }
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Supabase offline' }));
+      return;
+    }
+    try {
+      const lifeNum = parseInt(body.life) || 1;
+      const LIFE_DURATIONS = [30, 60, 120, 240, 480, 960, 1920];
+      const duration = LIFE_DURATIONS[Math.min(lifeNum - 1, LIFE_DURATIONS.length - 1)];
+      await supabase.from('global_state').update({
+        current_life: lifeNum,
+        timer_end: new Date(Date.now() + duration * 60000).toISOString(),
+        timer_duration_minutes: duration,
+        happiness: 0,
+        total_tasks_completed: 0,
+        updated_at: new Date().toISOString(),
+      }).eq('id', 1);
+      console.log(`ADMIN: Started Life #${lifeNum} (${duration}m timer)`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, life: lifeNum, duration_minutes: duration }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // Admin: manually draw raffle winner
   if (req.url === '/api/admin/draw-winner' && req.method === 'POST') {
     const body = await parseBody(req);
@@ -740,11 +775,11 @@ ONLY output the JSON. No markdown, no code blocks.`;
       res.end(JSON.stringify({ error: 'Invalid admin key' }));
       return;
     }
-    // Fall through to the regular raffle draw logic below
+    // Admin-authenticated — fall through to raffle draw logic
   }
 
   // ======================== DRAW RAFFLE WINNER ========================
-  if (req.url === '/api/raffle/draw' && req.method === 'POST') {
+  if ((req.url === '/api/raffle/draw' || req.url === '/api/admin/draw-winner') && req.method === 'POST') {
     if (!supabase) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ winner: null, offline: true }));

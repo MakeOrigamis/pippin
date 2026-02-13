@@ -60,6 +60,15 @@
     <button class="btn btn-green" onclick="refresh()">🔄 Refresh</button>
   </div>
 
+  <h2>Start New Life</h2>
+  <div class="card actions" style="display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;">
+    <label style="font-size:0.85rem; color:#888;">Life #</label>
+    <input type="number" id="lifeInput" min="1" max="99" value="1" style="width:70px; padding:0.5rem; background:#1a1410; border:1px solid #4a3a2a; color:#e8d5c4; border-radius:6px; font-size:1.1rem; text-align:center;" />
+    <span id="lifeDurationHint" style="font-size:0.8rem; color:#c4956a;">→ 30m timer</span>
+    <button class="btn btn-pink" onclick="startLife()">🚀 Start Life</button>
+    <span style="font-size:0.7rem; color:#666;">Resets happiness to 0, starts fresh timer for chosen life</span>
+  </div>
+
   <h2>Winner History</h2>
   <div class="card" id="winnerHistory"></div>
 
@@ -198,6 +207,35 @@ async function drawWinner() {
     showStatus('Error: ' + e.message, false);
   }
 }
+
+async function startLife() {
+  const lifeNum = parseInt(document.getElementById('lifeInput').value);
+  if (!lifeNum || lifeNum < 1) { showStatus('Enter a valid life number', false); return; }
+  const LIFE_DURATIONS = [30, 60, 120, 240, 480, 960, 1920];
+  const dur = LIFE_DURATIONS[Math.min(lifeNum - 1, LIFE_DURATIONS.length - 1)];
+  if (!confirm(`Start Life #${lifeNum} now?\nTimer: ${dur} minutes\nHappiness resets to 0`)) return;
+  try {
+    const res = await fetch('/api/admin/start-life', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: adminKey, life: lifeNum }),
+    });
+    const data = await res.json();
+    if (data.error) { showStatus(data.error, false); return; }
+    showStatus(`✅ Life #${data.life} started! Timer: ${data.duration_minutes}m`, true);
+    refresh();
+  } catch (e) {
+    showStatus('Error: ' + e.message, false);
+  }
+}
+
+// Update duration hint when life input changes
+document.getElementById('lifeInput').addEventListener('input', () => {
+  const v = parseInt(document.getElementById('lifeInput').value) || 1;
+  const LIFE_DURATIONS = [30, 60, 120, 240, 480, 960, 1920];
+  const dur = LIFE_DURATIONS[Math.min(v - 1, LIFE_DURATIONS.length - 1)];
+  document.getElementById('lifeDurationHint').textContent = `→ ${dur >= 60 ? (dur / 60) + 'h' : dur + 'm'} timer`;
+});
 
 // Auto-refresh every 30 seconds
 setInterval(() => { if (adminKey) refresh(); }, 30000);
