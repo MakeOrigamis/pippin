@@ -1188,11 +1188,14 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
       // If no active puzzle, create one from imported templates
       if (!puzzle) {
         const tmpl = PUZZLE_TEMPLATES[Math.floor(Math.random() * PUZZLE_TEMPLATES.length)];
+        // Store extra metadata in contributions JSONB as first entry with type "__meta"
+        const meta = { __meta: true, grid: tmpl.grid || null, subject: tmpl.subject || null, parts: tmpl.parts || null, clues: tmpl.clues || null };
         const { data: newPuzzle } = await supabase.from('group_puzzles').insert({
           puzzle_type: tmpl.type,
           prompt_jp: tmpl.jp,
           prompt_en: tmpl.en,
           target_count: tmpl.target,
+          contributions: [meta],
           life_number: lifeNum,
         }).select().single();
         puzzle = newPuzzle;
@@ -1210,10 +1213,10 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
   // ======================== GROUP PUZZLE: CONTRIBUTE ========================
   if (req.url === '/api/puzzle/contribute' && req.method === 'POST') {
     const body = await parseBody(req);
-    const { wallet, name, response, puzzle_id } = body;
-    if (!wallet || !response || !puzzle_id) {
+    const { wallet, name, response, puzzle_id, image_data, slot } = body;
+    if (!wallet || !puzzle_id || (!response && !image_data)) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'wallet, response, and puzzle_id required' }));
+      res.end(JSON.stringify({ error: 'wallet, puzzle_id, and response or image_data required' }));
       return;
     }
     if (!supabase) {
@@ -1234,18 +1237,38 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
         return;
       }
 
-      // Check if this wallet already contributed
-      const existing = (puzzle.contributions || []);
+      // Get all real contributions (excluding __meta)
+      const allEntries = puzzle.contributions || [];
+      const existing = allEntries.filter(c => !c.__meta);
+      const meta = allEntries.find(c => c.__meta) || {};
+
       if (existing.some(c => c.wallet === wallet)) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'already contributed', contributions: existing }));
+        res.end(JSON.stringify({ error: 'already contributed', contributions: allEntries }));
         return;
       }
 
-      // Add contribution
-      const newContribution = { wallet, name: name || 'explorer', response: response.substring(0, 200), time: new Date().toISOString() };
-      const updatedContributions = [...existing, newContribution];
-      const newCount = updatedContributions.length;
+      // For drawing puzzles, check if the requested slot is taken
+      const isDrawPuzzle = puzzle.puzzle_type === 'collab_draw' || puzzle.puzzle_type === 'exquisite_corpse';
+      if (isDrawPuzzle && slot !== undefined) {
+        if (existing.some(c => c.slot === slot)) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'slot taken', contributions: allEntries }));
+          return;
+        }
+      }
+
+      // Build contribution
+      const newContribution = {
+        wallet,
+        name: name || 'explorer',
+        response: image_data ? '(drawing)' : (response || '').substring(0, 500),
+        image_data: image_data || null,
+        slot: slot !== undefined ? slot : existing.length,
+        time: new Date().toISOString(),
+      };
+      const updatedContributions = [meta, ...existing, newContribution].filter(Boolean);
+      const newCount = updatedContributions.filter(c => !c.__meta).length;
       const isCompleted = newCount >= puzzle.target_count;
 
       await supabase.from('group_puzzles').update({

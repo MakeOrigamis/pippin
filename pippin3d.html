@@ -738,6 +738,38 @@
     }
     .gchat-puzzle-btn:hover { background: rgba(232, 160, 191, 0.35); }
     .gchat-puzzle-contribs { font-size: 0.55rem; color: rgba(232, 213, 196, 0.35); margin-top: 0.2rem; max-height: 60px; overflow-y: auto; }
+    .puzzle-grid {
+      display: grid; gap: 2px; margin: 0.3rem 0;
+      border: 1px solid rgba(232, 160, 191, 0.2); border-radius: 4px; overflow: hidden;
+    }
+    .puzzle-grid.g2x2 { grid-template-columns: 1fr 1fr; }
+    .puzzle-grid.g1x3 { grid-template-columns: 1fr; }
+    .puzzle-slot {
+      aspect-ratio: 1; background: rgba(232, 213, 196, 0.05);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative; overflow: hidden;
+      font-size: 0.5rem; color: rgba(232, 213, 196, 0.25);
+      transition: background 0.2s;
+    }
+    .puzzle-grid.g1x3 .puzzle-slot { aspect-ratio: 3/1; }
+    .puzzle-slot:hover { background: rgba(232, 160, 191, 0.15); }
+    .puzzle-slot.filled { cursor: default; }
+    .puzzle-slot.filled img { width: 100%; height: 100%; object-fit: cover; }
+    .puzzle-slot .slot-label { font-size: 0.45rem; color: rgba(232,213,196,0.3); text-align: center; }
+    .puzzle-slot .slot-artist { position: absolute; bottom: 1px; right: 2px; font-size: 0.35rem; color: rgba(232,160,191,0.5); }
+    .puzzle-mini-canvas-wrap {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      z-index: 200; background: rgba(26,20,16,0.95); border: 1px solid rgba(232,160,191,0.3);
+      border-radius: 12px; padding: 0.8rem; text-align: center;
+    }
+    .puzzle-mini-canvas-wrap canvas { border: 1px solid rgba(232,213,196,0.2); border-radius: 4px; cursor: crosshair; }
+    .puzzle-mini-title { font-size: 0.7rem; color: #e8a0bf; margin-bottom: 0.4rem; font-family: 'Baloo 2', cursive; }
+    .puzzle-mini-btns { margin-top: 0.4rem; display: flex; gap: 0.4rem; justify-content: center; }
+    .puzzle-mini-btns button {
+      padding: 0.3rem 0.7rem; font-size: 0.65rem; border-radius: 6px; cursor: pointer;
+      font-family: 'Quicksand', sans-serif;
+    }
+    .puzzle-overlay-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 199; }
     .gchat-messages {
       flex: 1; overflow-y: auto; padding: 0.4rem;
       display: flex; flex-direction: column; gap: 0.15rem;
@@ -1714,6 +1746,7 @@
     <div class="gchat-puzzle" id="gchatPuzzle" style="display:none">
       <div class="gchat-puzzle-title">🧩 GROUP PUZZLE</div>
       <div class="gchat-puzzle-prompt" id="puzzlePrompt"></div>
+      <div id="puzzleGridContainer"></div>
       <div class="gchat-puzzle-bar-outer"><div class="gchat-puzzle-bar-inner" id="puzzleBar" style="width:0%"></div></div>
       <div class="gchat-puzzle-count" id="puzzleCount">0/5</div>
       <div class="gchat-puzzle-contribs" id="puzzleContribs"></div>
@@ -3017,64 +3050,196 @@
       } catch(e) { console.warn('Puzzle load error:', e); }
     }
 
+    const puzzleGridContainer = document.getElementById('puzzleGridContainer');
+
+    function getPuzzleMeta() {
+      const contribs = currentPuzzle?.contributions || [];
+      return contribs.find(c => c.__meta) || {};
+    }
+    function getPuzzleContribs() {
+      return (currentPuzzle?.contributions || []).filter(c => !c.__meta);
+    }
+
     function renderPuzzle() {
       if (!currentPuzzle) { puzzleEl.style.display = 'none'; return; }
       puzzleEl.style.display = 'block';
       puzzlePromptEl.innerHTML = currentPuzzle.prompt_en + '<br><span style="font-size:0.55rem;opacity:0.45">' + currentPuzzle.prompt_jp + '</span>';
-      const pct = Math.min(100, (currentPuzzle.current_count / currentPuzzle.target_count) * 100);
+
+      const contribs = getPuzzleContribs();
+      const meta = getPuzzleMeta();
+      const realCount = contribs.length;
+      const pct = Math.min(100, (realCount / currentPuzzle.target_count) * 100);
       puzzleBarEl.style.width = pct + '%';
-      puzzleCountEl.textContent = `${currentPuzzle.current_count}/${currentPuzzle.target_count}`;
+      puzzleCountEl.textContent = `${realCount}/${currentPuzzle.target_count}`;
 
-      // Show contributions
-      const contribs = currentPuzzle.contributions || [];
-      if (contribs.length > 0) {
-        puzzleContribsEl.innerHTML = contribs.map(c => `<div>• ${c.name}: ${c.response}</div>`).join('');
-      } else {
-        puzzleContribsEl.innerHTML = '';
-      }
+      const isDrawType = currentPuzzle.puzzle_type === 'collab_draw' || currentPuzzle.puzzle_type === 'exquisite_corpse';
+      const isRiddle = currentPuzzle.puzzle_type === 'riddle';
+      const alreadyContributed = contribs.some(c => c.wallet === currentWallet);
 
-      // Hide contribute button if already contributed or completed
-      if (currentPuzzle.completed || contribs.some(c => c.wallet === currentWallet)) {
+      // Build grid for drawing puzzles
+      if (isDrawType && meta.grid) {
+        const [cols, rows] = meta.grid.split('x').map(Number);
+        const total = cols * rows;
+        const gridClass = meta.grid === '1x3' ? 'g1x3' : 'g2x2';
+        let gridHtml = `<div class="puzzle-grid ${gridClass}">`;
+        for (let i = 0; i < total; i++) {
+          const filled = contribs.find(c => c.slot === i);
+          if (filled && filled.image_data) {
+            gridHtml += `<div class="puzzle-slot filled"><img src="${filled.image_data}" alt="piece ${i}"/><span class="slot-artist">${filled.name}</span></div>`;
+          } else {
+            const label = meta.parts ? meta.parts[i] : `Piece ${i + 1}`;
+            const canClaim = !alreadyContributed && !currentPuzzle.completed;
+            gridHtml += `<div class="puzzle-slot${canClaim ? '' : ' filled'}" ${canClaim ? `onclick="claimPuzzleSlot(${i})"` : ''}><span class="slot-label">${label}<br>${canClaim ? '✏️ tap to draw' : '⏳'}</span></div>`;
+          }
+        }
+        gridHtml += '</div>';
+        puzzleGridContainer.innerHTML = gridHtml;
+        puzzleContributeBtn.style.display = 'none'; // use grid instead
+      } else if (isRiddle && meta.clues) {
+        // Show clues with who solved each
+        let html = '';
+        meta.clues.forEach((clue, i) => {
+          const solver = contribs.find(c => c.slot === i);
+          if (solver) {
+            html += `<div style="font-size:0.5rem;color:#8bc34a;">✅ ${clue.split('(')[0]} — ${solver.name}: ${solver.response}</div>`;
+          } else {
+            const canSolve = !alreadyContributed && !currentPuzzle.completed;
+            html += `<div style="font-size:0.5rem;cursor:${canSolve ? 'pointer' : 'default'};color:#e8a0bf;" ${canSolve ? `onclick="solvePuzzleClue(${i}, '${clue.replace(/'/g, "\\'")}')"` : ''}>❓ ${clue.split('(')[0]}${canSolve ? ' (click to answer)' : ''}</div>`;
+          }
+        });
+        puzzleGridContainer.innerHTML = html;
         puzzleContributeBtn.style.display = 'none';
       } else {
-        puzzleContributeBtn.style.display = '';
+        // Text-based puzzles (story etc) — simple contribute
+        puzzleGridContainer.innerHTML = '';
+        if (contribs.length > 0) {
+          puzzleContribsEl.innerHTML = contribs.map(c => `<div>• ${c.name}: ${c.response}</div>`).join('');
+        } else {
+          puzzleContribsEl.innerHTML = '';
+        }
+        puzzleContributeBtn.style.display = (alreadyContributed || currentPuzzle.completed) ? 'none' : '';
       }
     }
 
+    // Claim a drawing slot — opens a mini canvas
+    window.claimPuzzleSlot = function(slot) {
+      if (!currentPuzzle || !currentWallet) return;
+      const meta = getPuzzleMeta();
+      const label = meta.parts ? meta.parts[slot] : `Piece ${slot + 1}`;
+      const subject = meta.subject || '';
+
+      // Create overlay
+      const bg = document.createElement('div');
+      bg.className = 'puzzle-overlay-bg';
+      bg.onclick = () => { bg.remove(); wrap.remove(); };
+      document.body.appendChild(bg);
+
+      const wrap = document.createElement('div');
+      wrap.className = 'puzzle-mini-canvas-wrap';
+      const canvasSize = Math.min(300, window.innerWidth - 40);
+      wrap.innerHTML = `
+        <div class="puzzle-mini-title">Draw: ${label}${subject ? ' — ' + subject : ''}</div>
+        <canvas id="puzzleMiniCanvas" width="${canvasSize}" height="${canvasSize}" style="width:${canvasSize}px;height:${canvasSize}px;background:#fff;"></canvas>
+        <div class="puzzle-mini-btns">
+          <button style="background:rgba(232,90,90,0.2);border:1px solid rgba(232,90,90,0.3);color:#e85a5a;" onclick="this.closest('.puzzle-mini-canvas-wrap').remove();document.querySelector('.puzzle-overlay-bg').remove();">Cancel</button>
+          <button style="background:rgba(139,195,74,0.2);border:1px solid rgba(139,195,74,0.3);color:#8bc34a;" onclick="submitPuzzleDrawing(${slot})">Submit!</button>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+
+      // Set up drawing on mini canvas
+      const mc = document.getElementById('puzzleMiniCanvas');
+      const mctx = mc.getContext('2d');
+      mctx.fillStyle = '#ffffff';
+      mctx.fillRect(0, 0, mc.width, mc.height);
+      mctx.strokeStyle = '#333';
+      mctx.lineWidth = 3;
+      mctx.lineCap = 'round';
+      let drawing = false;
+
+      function getPos(e) {
+        const r = mc.getBoundingClientRect();
+        const t = e.touches ? e.touches[0] : e;
+        return { x: (t.clientX - r.left) * (mc.width / r.width), y: (t.clientY - r.top) * (mc.height / r.height) };
+      }
+      mc.addEventListener('mousedown', (e) => { drawing = true; const p = getPos(e); mctx.beginPath(); mctx.moveTo(p.x, p.y); });
+      mc.addEventListener('mousemove', (e) => { if (!drawing) return; const p = getPos(e); mctx.lineTo(p.x, p.y); mctx.stroke(); });
+      mc.addEventListener('mouseup', () => { drawing = false; });
+      mc.addEventListener('touchstart', (e) => { e.preventDefault(); drawing = true; const p = getPos(e); mctx.beginPath(); mctx.moveTo(p.x, p.y); }, { passive: false });
+      mc.addEventListener('touchmove', (e) => { e.preventDefault(); if (!drawing) return; const p = getPos(e); mctx.lineTo(p.x, p.y); mctx.stroke(); }, { passive: false });
+      mc.addEventListener('touchend', () => { drawing = false; });
+    };
+
+    // Submit the drawing from the mini canvas
+    window.submitPuzzleDrawing = async function(slot) {
+      const mc = document.getElementById('puzzleMiniCanvas');
+      if (!mc) return;
+      const imageData = mc.toDataURL('image/png');
+      // Close overlay
+      document.querySelector('.puzzle-overlay-bg')?.remove();
+      mc.closest('.puzzle-mini-canvas-wrap')?.remove();
+      // Send
+      await contributeToPuzzle(null, imageData, slot);
+    };
+
+    // Solve a riddle clue
+    window.solvePuzzleClue = function(slot, clue) {
+      const answer = prompt('Your answer: ' + clue);
+      if (answer && answer.trim()) {
+        contributeToPuzzle(answer.trim(), null, slot);
+      }
+    };
+
     window.showPuzzleInput = showPuzzleInput;
     function showPuzzleInput() {
-      const response = prompt(langMode === 'en' ? 'Your contribution to the puzzle:' : 'パズルに貢献しよう！');
+      if (!currentPuzzle) return;
+      const isDrawType = currentPuzzle.puzzle_type === 'collab_draw' || currentPuzzle.puzzle_type === 'exquisite_corpse';
+      if (isDrawType) {
+        // For draw puzzles, find first empty slot and claim it
+        const contribs = getPuzzleContribs();
+        const meta = getPuzzleMeta();
+        const [cols, rows] = (meta.grid || '2x2').split('x').map(Number);
+        for (let i = 0; i < cols * rows; i++) {
+          if (!contribs.find(c => c.slot === i)) {
+            window.claimPuzzleSlot(i);
+            return;
+          }
+        }
+        return;
+      }
+      const response = prompt('Your contribution to the puzzle:');
       if (response && response.trim()) {
         contributeToPuzzle(response.trim());
       }
     }
 
-    async function contributeToPuzzle(response) {
+    async function contributeToPuzzle(response, imageData, slot) {
       if (!currentPuzzle || !currentWallet) return;
       try {
+        const payload = {
+          wallet: currentWallet,
+          name: currentDisplayName || 'explorer',
+          puzzle_id: currentPuzzle.id,
+        };
+        if (imageData) payload.image_data = imageData;
+        if (response) payload.response = response;
+        if (slot !== undefined && slot !== null) payload.slot = slot;
+
         const res = await fetch('/api/puzzle/contribute', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            wallet: currentWallet,
-            name: currentDisplayName || 'explorer',
-            response: response,
-            puzzle_id: currentPuzzle.id,
-          }),
+          body: JSON.stringify(payload),
         });
         if (res.ok) {
           const data = await res.json();
           if (data.completed) {
             playSfx('complete');
-            // Reload puzzle to get new one
-            setTimeout(loadPuzzle, 2000);
-          } else {
-            // Update local state
+            setTimeout(loadPuzzle, 3000);
+          } else if (data.contributions) {
             currentPuzzle.current_count = data.count;
             currentPuzzle.contributions = data.contributions;
             renderPuzzle();
           }
-          // Refresh chat to see activity
           pollChat();
         }
       } catch(e) { console.warn('Puzzle contribute error:', e); }

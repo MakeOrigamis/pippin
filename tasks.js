@@ -552,44 +552,35 @@ const TASK_TEMPLATES = [
 ];
 
 // ======================== GROUP PUZZLE TEMPLATES ========================
-// These are used by the server to create collaborative puzzles in the chat
+// Collaborative puzzles: each player contributes a piece to build something together
 const PUZZLE_TEMPLATES = [
-  // Word chains
-  { type: 'word_chain', jp: 'しりとりをしよう！前の言葉の最後の文字で始まる英語を書いて！最初の言葉は「unicorn」', en: 'Word chain ne! type English word starting with last letter of previous word! first word: "unicorn"', target: 8 },
-  { type: 'word_chain', jp: 'しりとりタイム！最後の文字で始まる言葉を書いて！スタート：「rainbow」', en: 'Word chain time! type word starting with last letter desu! start: "rainbow"', target: 8 },
-  { type: 'word_chain', jp: 'しりとりチャレンジ！「moon」から始めよう！', en: 'Word chain challenge ne! start from "moon" desu!', target: 8 },
-  { type: 'word_chain', jp: 'しりとりパーティー！「star」から始めるよ！', en: 'Word chain party ne! starting with "star"!', target: 8 },
-  { type: 'word_chain', jp: 'しりとりバトル！「dream」からスタート！', en: 'Word chain battle ne! start from "dream" desu!', target: 8 },
+  // ---- COLLABORATIVE DRAWING: 4 players each draw one quadrant ----
+  { type: 'collab_draw', grid: '2x2', jp: 'みんなでピピンの肖像画を描こう！', en: '🎨 Draw Pippin together! Each person draws one quarter of the portrait!', target: 4, subject: 'Pippin the unicorn portrait' },
+  { type: 'collab_draw', grid: '2x2', jp: 'みんなで虹の景色を描こう！', en: '🎨 Draw a rainbow landscape together! Each person draws one section!', target: 4, subject: 'rainbow landscape' },
+  { type: 'collab_draw', grid: '2x2', jp: '宇宙の絵をみんなで描こう！', en: '🎨 Draw outer space together! Each person draws one corner!', target: 4, subject: 'outer space scene' },
+  { type: 'collab_draw', grid: '2x2', jp: '海の世界をみんなで描こう！', en: '🎨 Draw underwater world together! Each person draws one piece!', target: 4, subject: 'underwater ocean scene' },
+  { type: 'collab_draw', grid: '2x2', jp: 'ピピンのパーティーをみんなで描こう！', en: '🎨 Draw Pippin party scene together! One section each!', target: 4, subject: 'Pippin party with friends' },
+  { type: 'collab_draw', grid: '2x2', jp: '魔法の森をみんなで描こう！', en: '🎨 Draw a magical forest together! One piece each!', target: 4, subject: 'magical enchanted forest' },
+  { type: 'collab_draw', grid: '2x2', jp: 'サイケデリックな川をみんなで描こう！', en: '🎨 Draw the psychedelic river together! One section each!', target: 4, subject: 'psychedelic rainbow river' },
+  { type: 'collab_draw', grid: '2x2', jp: '未来都市をみんなで描こう！', en: '🎨 Draw a futuristic city together! One quarter each!', target: 4, subject: 'futuristic neon city' },
 
-  // Community counting
-  { type: 'count', jp: 'みんなで1から20まで数えよう！一人一つずつ！次の数字を書いて！', en: 'Count from 1 to 20 together ne! one number each! type next number desu!', target: 20 },
-  { type: 'count', jp: '3の倍数を数えよう！3, 6, 9... 一人一つずつ！', en: 'Count multiples of 3 ne! 3, 6, 9... one each desu!', target: 10 },
-  { type: 'count', jp: '逆カウントダウン！20から0まで！一人一つずつ！', en: 'Reverse countdown ne! 20 to 0! one each desu!', target: 20 },
-  { type: 'count', jp: 'フィボナッチを数えよう！1, 1, 2, 3, 5... 次の数字は？', en: 'Count Fibonacci ne! 1, 1, 2, 3, 5... what comes next desu?', target: 8 },
+  // ---- EXQUISITE CORPSE: each person draws a body part (head/torso/legs) ----
+  { type: 'exquisite_corpse', grid: '1x3', jp: '合体モンスターを作ろう！頭・体・足を別々の人が描く！', en: '🧟 Exquisite Corpse! Draw HEAD, BODY, or LEGS — each person draws one part! No peeking!', target: 3, parts: ['HEAD (top)', 'BODY (middle)', 'LEGS (bottom)'] },
+  { type: 'exquisite_corpse', grid: '1x3', jp: '合体キャラクター！頭・体・足をそれぞれ描いて！', en: '🧟 Franken-character! Draw HEAD, BODY, or LEGS without seeing others!', target: 3, parts: ['HEAD (top)', 'BODY (middle)', 'LEGS (bottom)'] },
+  { type: 'exquisite_corpse', grid: '1x3', jp: 'ピピンの変身！頭・体・足をそれぞれ描いて合体！', en: '🧟 Pippin Mashup! Draw Pippin HEAD, BODY, or LEGS — combine for surprise!', target: 3, parts: ['HEAD (top)', 'BODY (middle)', 'LEGS (bottom)'] },
 
-  // Collective stories
-  { type: 'story', jp: 'みんなで物語を作ろう！一人一文ずつ追加して！テーマ：「ピピンの冒険」', en: 'Build a story together ne! one sentence each! theme: "Pippin adventure" desu!', target: 6 },
-  { type: 'story', jp: '共同ストーリー！一文ずつ追加！テーマ：「月で見つけたもの」', en: 'Collab story ne! one sentence each! theme: "what we found on the moon" desu!', target: 6 },
-  { type: 'story', jp: 'みんなでストーリー！テーマ：「虹の川の秘密」一人一文ずつ！', en: 'Group story ne! theme: "secret of the rainbow river" desu! one sentence each!', target: 6 },
-  { type: 'story', jp: '物語タイム！テーマ：「バスタブの旅」一文ずつ追加してね！', en: 'Story time ne! theme: "bathtub journey" desu! add one sentence!', target: 6 },
-  { type: 'story', jp: 'みんなで作る物語！テーマ：「踊るキノコの秘密」', en: 'Group story ne! theme: "secret of the dancing mushrooms" desu!', target: 6 },
+  // ---- MULTI-PART RIDDLE: each person solves one clue ----
+  { type: 'riddle', jp: '暗号を解け！各自がヒントを一つ解いて！', en: '🔐 Crack the code! 4 clues, 4 solvers needed! Each person answers one clue!', target: 4,
+    clues: ['What has keys but no locks? (answer: piano/keyboard)', 'What has a face but no eyes? (answer: clock)', 'What gets wetter the more it dries? (answer: towel)', 'What can travel around the world while staying in a corner? (answer: stamp)'] },
+  { type: 'riddle', jp: 'なぞなぞリレー！一人一問解いて！', en: '🔐 Riddle relay! 4 riddles, one per person! Solve your clue!', target: 4,
+    clues: ['I have cities but no houses. What am I? (answer: map)', 'I follow you but can\'t be caught. What am I? (answer: shadow)', 'The more you take, the more you leave behind. What? (answer: footsteps)', 'I speak without a mouth and hear without ears. What? (answer: echo)'] },
+  { type: 'riddle', jp: 'クイズリレー！', en: '🔐 Quiz relay! Each person answers one question!', target: 4,
+    clues: ['Name a country that starts with the letter J', 'Name a fruit that is red', 'Name an animal that lives in the ocean', 'Name a planet in our solar system'] },
 
-  // Emoji chains
-  { type: 'emoji', jp: '絵文字チェーン！一人一つ動物の絵文字を追加！被りはダメ！', en: 'Emoji chain ne! add one animal emoji each! no duplicates desu!', target: 10 },
-  { type: 'emoji', jp: '食べ物絵文字チェーン！一人一つ追加して！被りはダメ！', en: 'Food emoji chain ne! add one each! no duplicates desu!', target: 10 },
-  { type: 'emoji', jp: 'ランダム絵文字チェーン！なんでもOK！一人一つ！被りなし！', en: 'Random emoji chain ne! anything goes! one each desu! no duplicates!', target: 10 },
-  { type: 'emoji', jp: 'お花の絵文字を集めよう！一人一つ！', en: 'Collect flower emojis ne! one each desu!', target: 8 },
-  { type: 'emoji', jp: 'スポーツ絵文字チェーン！一人一つ追加！', en: 'Sports emoji chain ne! add one each desu!', target: 8 },
-
-  // Trivia
-  { type: 'trivia', jp: 'トリビアレース！「ユニコーンのツノは何でできてると言われている？」最初に正解した人がボーナス！', en: 'Trivia race ne! "what is unicorn horn said to be made of?" first correct answer gets bonus desu!', target: 1 },
-  { type: 'trivia', jp: 'トリビア！「虹は何色ある？」一番最初に正解した人の勝ち！', en: 'Trivia ne! "how many colors in a rainbow?" first correct answer wins desu!', target: 1 },
-  { type: 'trivia', jp: 'トリビア！「地球上で最も大きな動物は？」', en: 'Trivia ne! "what is the largest animal on Earth?" desu!', target: 1 },
-  { type: 'trivia', jp: 'トリビア！「太陽系で一番大きな惑星は？」', en: 'Trivia ne! "what is the largest planet in solar system?" desu!', target: 1 },
-  { type: 'trivia', jp: 'トリビア！「月まで光の速さでどのくらいかかる？」', en: 'Trivia ne! "how long does light take to reach the moon?" desu!', target: 1 },
-  { type: 'trivia', jp: 'トリビア！「世界で一番高い山は？」', en: 'Trivia ne! "what is tallest mountain in the world?" desu!', target: 1 },
-  { type: 'trivia', jp: 'トリビア！「水の化学式は？」', en: 'Trivia ne! "what is chemical formula for water?" desu!', target: 1 },
-  { type: 'trivia', jp: 'トリビア！「ビットコインの創設者のペンネームは？」', en: 'Trivia ne! "what is pen name of Bitcoin creator?" desu!', target: 1 },
+  // ---- COLLECTIVE STORY (kept, these work well) ----
+  { type: 'story', jp: 'みんなで物語を作ろう！', en: '📖 Build a story together! Each person adds one sentence! Theme: "Pippin saves the world"', target: 6 },
+  { type: 'story', jp: '共同ストーリー！', en: '📖 Collab story! One sentence each! Theme: "The mystery of the rainbow river"', target: 6 },
+  { type: 'story', jp: 'みんなでストーリー！', en: '📖 Group story! Theme: "What happened when the mushrooms stopped dancing"', target: 6 },
 ];
 
 module.exports = { TASK_TEMPLATES, PUZZLE_TEMPLATES };
