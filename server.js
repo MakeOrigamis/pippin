@@ -1055,7 +1055,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
         .from('drawings')
         .select('id, prompt, image_data, created_at, participant_id')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(200);
 
       console.log(`GALLERY: fetched ${data?.length || 0} drawings from DB${fetchErr ? ' ERROR: ' + fetchErr.message : ''}`);
 
