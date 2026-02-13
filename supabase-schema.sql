@@ -39,10 +39,10 @@ CREATE TABLE drawings (
 -- Global state: happiness meter, timer, current life
 CREATE TABLE global_state (
   id INT PRIMARY KEY DEFAULT 1,
-  happiness INT DEFAULT 50,          -- 0-100
+  happiness INT DEFAULT 0,           -- 0-100, starts unhappy!
   current_life INT DEFAULT 1,
   timer_end TIMESTAMPTZ,
-  timer_duration_minutes INT DEFAULT 60,
+  timer_duration_minutes INT DEFAULT 30,  -- Life 1: 30min, 2: 60m, 3: 120m, 4: 240m, 5: 480m, 6: 960m, 7: 1920m
   total_tasks_completed INT DEFAULT 0,
   last_winner_wallet TEXT,
   last_winner_name TEXT,
@@ -51,8 +51,11 @@ CREATE TABLE global_state (
 
 -- Initialize global state
 INSERT INTO global_state (id, happiness, current_life, timer_end, timer_duration_minutes)
-VALUES (1, 50, 1, NOW() + INTERVAL '60 minutes', 60)
+VALUES (1, 0, 1, NOW() + INTERVAL '30 minutes', 30)
 ON CONFLICT (id) DO NOTHING;
+
+-- To reset an existing game to Life #1 with correct values, run:
+-- UPDATE global_state SET happiness = 0, current_life = 1, timer_end = NOW() + INTERVAL '30 minutes', timer_duration_minutes = 30 WHERE id = 1;
 
 -- Raffle entries: one entry per task completed
 CREATE TABLE raffle_entries (

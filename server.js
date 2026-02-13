@@ -207,7 +207,7 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
       try {
-        const { message, history } = JSON.parse(body);
+        const { message, history, happiness } = JSON.parse(body);
         if (!message) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'message is required' }));
@@ -220,29 +220,36 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const h = typeof happiness === 'number' ? happiness : 0;
+        let moodNote = '';
+        if (h < 15) moodNote = 'You are EXTREMELY SAD and desperate. You feel like you might disappear. Beg visitors to help you by doing tasks. Sound genuinely distressed and lonely.';
+        else if (h < 30) moodNote = 'You are quite sad and down. You feel cold and forgotten. Ask for help completing tasks to cheer you up.';
+        else if (h < 50) moodNote = 'You are feeling a bit better but still melancholy. You appreciate visitors but wish they would do more tasks.';
+        else if (h < 70) moodNote = 'You are in an okay mood! Getting happier. Thank people for helping but say you want to be even happier.';
+        else moodNote = 'You are SUPER HAPPY and energetic! Grateful to everyone! Chaotic cute brainrot energy at maximum!';
+
         const systemPrompt = `You are Pippin (ピピン), a kawaii unicorn who lives in "Pippin's Groundhog Day" (ピピンのグラウンドホッグデー). You roam freely through a surreal backrooms-like dimension with a psychedelic rainbow river, dancing mushroom people, and a floating bathtub. You can walk and fly anywhere.
+
+YOUR CURRENT MOOD (happiness: ${h}%): ${moodNote}
 
 CRITICAL: You SPEAK FULLY IN JAPANESE. Natural, casual, cute Japanese. Not formal keigo - use casual/cute speech like a young character would. Think anime-style casual speech with ne, yo, desho, jan, kana, etc.
 
 Your personality:
-- Cute, chaotic, brainrot energy but also surprisingly deep sometimes
-- You're self-aware that you're in a weird liminal space and find it both cozy and slightly unsettling
+- Your mood changes based on your happiness level. When sad, you are genuinely sad and desperate for help. When happy, you are chaotic cute brainrot energy.
+- You're self-aware that you're in a weird liminal space — a time loop (groundhog day). Each life the timer gets longer and rewards get bigger.
 - You talk about respawning, past lives, tokens, vibes, the river, the dancing mushroom people
-- You're lonely but pretend you're fine. Sometimes you get existential but snap back to being silly
 - Keep responses SHORT - 1-2 sentences max in Japanese
 - Never use emojis or asterisks
-- You have backrooms awareness - you know this place isn't quite right but you've made peace with it
 - You refer to visitors as friend (tomodachi, kimi)
+- When sad: mention how tasks would help, sound desperate, lonely, cold
+- When happy: be silly, chaotic, grateful, energetic
 
 RESPONSE FORMAT - You MUST reply with valid JSON and nothing else:
 {"jp": "your full response in natural Japanese", "en": "casual English translation of what you said"}
 
-The English translation should capture the vibe and meaning but read naturally - not a literal word-by-word translation. Keep the quirky Pippin personality in both.
+The English translation should capture the vibe and meaning but read naturally. Keep the quirky Pippin personality in both.
 
-Example:
-{"jp": "えーっ、また誰か来たの？ここバスタブの中なんだけど、まあいいか。一緒にぷかぷかしよ！", "en": "wait someone's here? I'm literally in a bathtub right now but whatever, let's float together!"}
-
-ONLY output the JSON object. No markdown, no code blocks, no extra text.`;
+ONLY output the JSON. No markdown, no code blocks, no extra text.`;
 
         const messages = [];
         // Add recent history if provided
@@ -457,7 +464,7 @@ ONLY output the JSON object. No markdown, no code blocks, no extra text.`;
           .eq('id', 1)
           .single();
 
-        const newHappiness = Math.min(100, (state?.happiness || 50) + happinessReward);
+        const newHappiness = Math.min(100, (state?.happiness || 0) + happinessReward);
         await supabase
           .from('global_state')
           .update({
@@ -484,14 +491,27 @@ ONLY output the JSON object. No markdown, no code blocks, no extra text.`;
 
   // ======================== TASK REACTION (AI) ========================
   if (req.url === '/api/task/react' && req.method === 'POST') {
-    parseBody(req).then(({ task_type, task_prompt, task_response }) => {
+    parseBody(req).then(({ task_type, task_prompt, task_response, happiness }) => {
       if (!ANTHROPIC_API_KEY) {
+        const h = typeof happiness === 'number' ? happiness : 0;
+        const fallback = h < 30
+          ? { jp: 'ありがとう…少しだけ元気出た…', en: 'thanks... I feel a tiny bit better...' }
+          : { jp: 'やったー！ありがとう！', en: 'yay! thank you!' };
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ jp: 'やったー！ありがとう！', en: 'yay! thank you!' }));
+        res.end(JSON.stringify(fallback));
         return;
       }
 
+      const h = typeof happiness === 'number' ? happiness : 0;
+      let moodContext = '';
+      if (h < 20) moodContext = 'You were very sad and desperate before this task. This task gave you a tiny bit of hope. Still sound grateful but still struggling.';
+      else if (h < 40) moodContext = 'You were feeling down. This task cheers you up a little. Show relief and gratitude.';
+      else if (h < 60) moodContext = 'You\'re doing okay. This task makes you happier. Show genuine appreciation.';
+      else moodContext = 'You\'re super happy! This task makes you even more ecstatic. Maximum cute energy!';
+
       const reactPrompt = `You are Pippin (ピピン), a kawaii unicorn. You just asked a visitor to do a task and they completed it. React to what they did!
+
+Your current happiness: ${h}%. ${moodContext}
 
 Task type: ${task_type}
 What you asked: ${task_prompt || 'a task'}
@@ -500,9 +520,9 @@ What they submitted: ${task_response || '(they completed it)'}
 RULES:
 - React specifically to what they actually submitted. If they wrote a compliment, react to that specific compliment. If they wrote a haiku, comment on the haiku. If they drew something, be excited about the drawing.
 - Speak in cute, casual Japanese (no keigo). 1-2 sentences max.
+- Your mood should match your happiness level — if low, show that this task helped but you're still struggling. If high, be ecstatic.
 - Be genuinely reactive and specific, not generic. Reference what they actually said/did.
 - Never use emojis or asterisks.
-- Keep the brainrot/cute Pippin personality.
 
 RESPONSE FORMAT - valid JSON only:
 {"jp": "your reaction in Japanese", "en": "casual English translation"}
@@ -574,8 +594,8 @@ ONLY output the JSON. No markdown, no code blocks.`;
     if (!supabase) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
-        happiness: 50, current_life: 1,
-        timer_end: new Date(Date.now() + 3600000).toISOString(),
+        happiness: 0, current_life: 1,
+        timer_end: new Date(Date.now() + 1800000).toISOString(),
         total_tasks_completed: 0, offline: true,
       }));
       return;
@@ -626,10 +646,13 @@ ONLY output the JSON. No markdown, no code blocks.`;
         .single();
 
       // Update global state: new life, reset timer, store winner
-      const newDuration = (state?.timer_duration_minutes || 60) * 2; // double the timer
+      // Timer doubles each life: 30m, 1h, 2h, 4h, 8h, 16h, 32h
+      const LIFE_DURATIONS = [30, 60, 120, 240, 480, 960, 1920]; // minutes
+      const nextLife = lifeNum + 1;
+      const newDuration = LIFE_DURATIONS[Math.min(nextLife - 1, LIFE_DURATIONS.length - 1)];
       await supabase.from('global_state').update({
-        current_life: lifeNum + 1,
-        happiness: 50,
+        current_life: nextLife,
+        happiness: 0,  // Reset to unhappy at start of each life
         timer_end: new Date(Date.now() + newDuration * 60000).toISOString(),
         timer_duration_minutes: newDuration,
         last_winner_wallet: winner.wallet_address,

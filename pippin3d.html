@@ -122,7 +122,8 @@
     .happiness-mini-fill {
       height: 100%;
       border-radius: 10px;
-      background: linear-gradient(90deg, var(--gold), var(--pink));
+      background: linear-gradient(90deg, #ef5350, #e53935);
+      transition: width 0.5s ease, background 0.5s ease;
       transition: width 1s;
     }
 
@@ -1257,11 +1258,11 @@
     <div class="top-logo">&#129412; ピピンのグラウンドホッグデー</div>
     <div class="life-info">
       <div class="life-badge">Life #1</div>
-      <div class="timer" id="miniTimer">00:59:59</div>
+      <div class="timer" id="miniTimer">00:29:59</div>
       <div class="happiness-mini">
-        <span id="miniHappyFace">&#128522;</span>
+        <span id="miniHappyFace">&#128546;</span>
         <div class="happiness-mini-bar">
-          <div class="happiness-mini-fill" id="miniHappyFill" style="width: 50%"></div>
+          <div class="happiness-mini-fill" id="miniHappyFill" style="width: 0%"></div>
         </div>
       </div>
       <button class="ranking-btn" id="rankingBtn">&#127942; ランキング</button>
@@ -2211,6 +2212,7 @@
     const bgMusic = document.getElementById('bgMusic');
     bgMusic.volume = 0.3;
     let hasEntered = false;
+    let currentHappiness = 0;
 
     document.getElementById('introEnter').addEventListener('click', () => {
       if (hasEntered) return;
@@ -2351,7 +2353,7 @@
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg, history: chatHistory }),
+          body: JSON.stringify({ message: msg, history: chatHistory, happiness: currentHappiness }),
         });
 
         let jp, en;
@@ -2388,34 +2390,55 @@
     });
 
     // Idle chatter - jp/en pairs. Pippin speaks Japanese, bubble shows English
-    const idleMessages = [
-      { jp: "やっほー！こんにちは！ピピンだよ！バスタブに乗ったユニコーン。話しかけてね！", en: "yooo hello! I'm Pippin! a unicorn in a bathtub. come talk to me!" },
-      { jp: "もしもーし？誰かいるの？そこで見てるの分かってるよ！", en: "hellooo? anyone there? I can see you lurking, you know!" },
-      { jp: "まあいいや、独り言でも言ってよう。慣れてるし。全然平気。", en: "okay I'll just keep talking to myself then. I'm used to it. totally fine." },
-      { jp: "ねえねえ、このバスタブにどれくらい浮いてるんだろ。ここ時間の感覚おかしいよね。", en: "hey, how long have I been floating in this bathtub? time works different here." },
-      { jp: "雲ってわたあめの味するのかな。絶対するよね。誰も反証できないし。", en: "I wonder if clouds taste like cotton candy. I bet they do. nobody can prove me wrong." },
-      { jp: "この川、めっちゃ主人公オーラ出てない？すごいバイブスだよ。", en: "this river is giving major main character energy right now. incredible vibes." },
-      { jp: "たまにここに立ってトークンのこと考えてるんだけど、普通かな？友達に聞いてるだけだよ。", en: "sometimes I just stand here thinking about tokens. is that normal? asking for a friend." },
-      { jp: "ピピンの豆知識：私、死んでも戻ってくるの！それが私の全て。まさにグラウンドホッグデー。", en: "fun fact: I die and come back! it's my whole thing. very groundhog day core." },
-      { jp: "キノコの人たちまた踊ってる。正直リスペクト。あいつら絶対止まらないもん。すごい。", en: "the mushroom guys are dancing again. respect honestly. they never stop." },
-      { jp: "何か打ってくれたら絶対返事するよ！私めっちゃ賢いから。たまにね。でも頑張る！", en: "type something and I'll respond I promise! I'm super smart. sometimes. but I try!" },
+    // Mood-based idle messages: sad when low happiness, happy when high
+    const sadMessages = [
+      { jp: "さみしいよ…誰か来てくれないかな…", en: "I'm so lonely... will someone come help me..." },
+      { jp: "なんでこんなに悲しいんだろう。タスクやってくれたら元気出るのに。", en: "why am I so sad. if someone did a task I'd feel better..." },
+      { jp: "ここ暗いし寒いし…友達ほしい…", en: "it's dark and cold here... I want friends..." },
+      { jp: "このままじゃダメになっちゃう…助けて…", en: "I'm gonna fade away like this... help me..." },
+      { jp: "幸せ度ゼロって…つらすぎ…", en: "zero happiness... that's just too much..." },
+      { jp: "誰かタスクやって…お願い…消えちゃいそう…", en: "someone do a task... please... I might disappear..." },
+      { jp: "グラウンドホッグデーなのに…全然楽しくない…", en: "it's groundhog day but... it's not fun at all..." },
     ];
+
+    const okMessages = [
+      { jp: "ちょっと元気出てきた！もっとタスクやって！", en: "feeling a bit better! do more tasks!" },
+      { jp: "ねえねえ、このバスタブにどれくらい浮いてるんだろ。", en: "hey, how long have I been floating in this bathtub?" },
+      { jp: "キノコの人たちまた踊ってる。正直リスペクト。", en: "the mushroom guys are dancing again. respect honestly." },
+      { jp: "たまにここに立ってトークンのこと考えてるんだけど。", en: "sometimes I just stand here thinking about tokens." },
+      { jp: "もうちょっとで幸せになれそう！頑張って！", en: "almost happy! keep going!" },
+    ];
+
+    const happyMessages = [
+      { jp: "やっほー！めっちゃ幸せ！みんなありがとう！", en: "yooo! so happy! thanks everyone!" },
+      { jp: "この川、めっちゃ主人公オーラ出てない？最高！", en: "this river is giving main character energy! amazing!" },
+      { jp: "雲ってわたあめの味するのかな。絶対するよね！", en: "clouds definitely taste like cotton candy. nobody can prove me wrong!" },
+      { jp: "ピピンの豆知識：私、死んでも戻ってくるの！まさにグラウンドホッグデー！", en: "fun fact: I die and come back! very groundhog day core!" },
+      { jp: "みんな最高だよ！一緒にぷかぷかしよう！", en: "everyone is the best! let's float together!" },
+    ];
+
+    function getMoodMessages() {
+      if (currentHappiness >= 60) return happyMessages;
+      if (currentHappiness >= 25) return okMessages;
+      return sadMessages;
+    }
 
     let idleMsgTimer = null;
     let idleMsgIdx = 0;
     function startIdleMessages() {
       idleMsgTimer = setInterval(() => {
         if (isSpeaking || !hasEntered) return;
-        idleMsgIdx = (idleMsgIdx + 1) % idleMessages.length;
-        const msg = idleMessages[idleMsgIdx];
+        const msgs = getMoodMessages();
+        idleMsgIdx = (idleMsgIdx + 1) % msgs.length;
+        const msg = msgs[idleMsgIdx];
         pippinSay(msg.jp, msg.en);
-      }, 20000); // every 20 seconds
+      }, 20000);
     }
 
-    // Start idle messages after intro click - first greeting spoken
+    // Start idle messages after intro click - first greeting (sad)
     document.getElementById('introEnter').addEventListener('click', () => {
       setTimeout(() => {
-        const greeting = idleMessages[0];
+        const greeting = sadMessages[0];
         pippinSay(greeting.jp, greeting.en);
         startIdleMessages();
       }, 3000);
@@ -2783,6 +2806,7 @@
                 task_type: currentTask.type,
                 task_prompt: currentTask.jp,
                 task_response: response || '(completed)',
+                happiness: currentHappiness,
               }),
             });
             const reactData = await reactRes.json();
@@ -2807,14 +2831,23 @@
     taskSkip.addEventListener('click', loadNewTask);
 
     function updateHappiness(value) {
+      currentHappiness = value;
       const fill = document.getElementById('miniHappyFill');
-      if (fill) fill.style.width = value + '%';
+      if (fill) {
+        fill.style.width = value + '%';
+        // Color goes from red (sad) to yellow (ok) to green (happy)
+        if (value >= 60) fill.style.background = 'linear-gradient(90deg, #66bb6a, #43a047)';
+        else if (value >= 30) fill.style.background = 'linear-gradient(90deg, #ffa726, #ffca28)';
+        else fill.style.background = 'linear-gradient(90deg, #ef5350, #e53935)';
+      }
       const face = document.getElementById('miniHappyFace');
       if (face) {
         if (value >= 80) face.textContent = '😄';
-        else if (value >= 50) face.textContent = '😊';
-        else if (value >= 30) face.textContent = '😐';
-        else face.textContent = '😢';
+        else if (value >= 60) face.textContent = '😊';
+        else if (value >= 40) face.textContent = '😐';
+        else if (value >= 20) face.textContent = '😟';
+        else if (value >= 5) face.textContent = '😢';
+        else face.textContent = '😭';
       }
     }
 
@@ -2879,7 +2912,7 @@
     });
 
     // ======================== GLOBAL STATE + LIVE TIMER ========================
-    let timerEndMs = Date.now() + 3600000; // fallback 1hr
+    let timerEndMs = Date.now() + 1800000; // fallback 30min (life 1)
 
     async function pollGlobalState() {
       try {
@@ -2915,20 +2948,38 @@
     // Sync with server every 30 seconds
     setInterval(pollGlobalState, 30000);
 
+    // Set initial state immediately
+    updateHappiness(0);
+
     // Initial poll after entering
     document.getElementById('introEnter').addEventListener('click', () => {
       setTimeout(pollGlobalState, 2000);
     });
 
     // ======================== PIPPIN PROACTIVELY ASKS TASKS ========================
-    const taskAskMessages = [
+    const sadTaskMessages = [
+      { jp: 'お願い…タスクやって…消えちゃいそう…右上のパネルを見て…', en: 'please... do a task... I might disappear... check the panel top-right...' },
+      { jp: '助けて…幸せ度がゼロ…タスクやってくれたら元気出るのに…', en: 'help me... happiness is zero... tasks would help me feel better...' },
+      { jp: 'さみしい…誰かタスクパネルのお仕事やって…お願い…', en: 'so lonely... someone please do the tasks in the panel... please...' },
+      { jp: 'このままじゃ消えちゃう…右上にタスクあるから…お願い…', en: 'I\'ll fade away like this... there are tasks top-right... please...' },
+    ];
+    const okTaskMessages = [
       { jp: 'ねえねえ！お仕事あるんだけど、手伝ってくれない？タスクパネル見てみて！', en: 'hey hey! I have a job for you, wanna help? check the task panel!' },
       { jp: 'ちょっとお願いがあるの！右上のパネルにタスクが出てるよ！', en: 'I have a favor to ask! there\'s a task in the panel on the right!' },
-      { jp: 'なんか描いてほしいな～！タスク見てくれる？', en: 'I want you to draw something! check the tasks?' },
       { jp: 'タスクやってくれたら幸せ度が上がるよ！お願い！', en: 'if you do a task my happiness goes up! please!' },
       { jp: 'ひまなら右上のタスクやってみて！ラッフルにもエントリーされるよ！', en: 'if you\'re free try the tasks top-right! you get a raffle entry too!' },
-      { jp: 'お絵描きしない？キャンバス開けるよ！タスクパネルから！', en: 'wanna draw? you can open the canvas! from the task panel!' },
     ];
+    const happyTaskMessages = [
+      { jp: 'もっとタスクやってー！最高に楽しいよ！', en: 'do more tasks! this is so much fun!' },
+      { jp: 'なんか描いてほしいな〜！キャンバス開けるよ！', en: 'draw something for me! you can open the canvas!' },
+      { jp: 'みんなのおかげで超ハッピー！でももっとタスク！', en: 'so happy thanks to everyone! but more tasks please!' },
+    ];
+
+    function getTaskAskMessages() {
+      if (currentHappiness >= 60) return happyTaskMessages;
+      if (currentHappiness >= 25) return okTaskMessages;
+      return sadTaskMessages;
+    }
 
     // After joining, Pippin starts asking for tasks every ~40 seconds
     let taskAskTimer = null;
@@ -2937,15 +2988,16 @@
       // First ask after 15 seconds
       setTimeout(() => {
         if (!myWallet) return;
-        const msg = taskAskMessages[0];
-        pippinSay(msg.jp, msg.en);
+        const msgs = getTaskAskMessages();
+        pippinSay(msgs[0].jp, msgs[0].en);
       }, 15000);
 
       // Then every 45 seconds
       let askIdx = 1;
       taskAskTimer = setInterval(() => {
         if (isSpeaking || !myWallet || !hasEntered) return;
-        const msg = taskAskMessages[askIdx % taskAskMessages.length];
+        const msgs = getTaskAskMessages();
+        const msg = msgs[askIdx % msgs.length];
         pippinSay(msg.jp, msg.en);
         askIdx++;
       }, 45000);
