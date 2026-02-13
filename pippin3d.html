@@ -1755,7 +1755,10 @@
           <div class="logged-in-wallet" id="loggedInWallet"></div>
         </div>
       </div>
-      <button class="change-name-btn" id="changeNameBtn">change name</button>
+      <div style="display:flex;gap:6px;margin-top:2px;">
+        <button class="change-name-btn" id="changeNameBtn">change name</button>
+        <button class="change-name-btn" id="logoutBtn" onclick="doLogout()" style="color:#e85a5a;">logout</button>
+      </div>
     </div>
     <div class="wallet-status" id="walletStatus"></div>
   </div>
@@ -4094,7 +4097,6 @@
         currentDisplayName = trimmed;
         localStorage.setItem('pippin_name', trimmed);
         document.getElementById('loggedInName').textContent = trimmed;
-        // Re-join to update server
         fetch('/api/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4102,6 +4104,25 @@
         }).catch(() => {});
       }
     });
+
+    // Logout
+    window.doLogout = function() {
+      localStorage.removeItem('pippin_wallet');
+      localStorage.removeItem('pippin_name');
+      myWallet = '';
+      currentWallet = '';
+      currentDisplayName = 'explorer';
+      myParticipantId = null;
+      walletInput.value = '';
+      nameInput.value = '';
+      walletForm.style.display = '';
+      walletLoggedIn.style.display = 'none';
+      walletPanel.classList.remove('joined', 'show');
+      loginBtn.classList.remove('hidden');
+      document.getElementById('walletLabel').textContent = '🦄 Choose your name & connect wallet';
+      document.getElementById('walletClose').style.display = '';
+      walletStatus.textContent = '';
+    };
 
     // ======================== TASK SYSTEM ========================
     let currentTask = null;
