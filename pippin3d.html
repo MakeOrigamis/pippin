@@ -443,6 +443,16 @@
     .gallery-time {
       font-size: 0.6rem; color: rgba(232, 213, 196, 0.25); margin-top: 0.1rem;
     }
+    .gallery-share {
+      display: flex; align-items: center; gap: 0.3rem;
+      margin-top: 0.4rem; padding: 0.3rem 0.5rem;
+      background: #1a1410; border: 1px solid rgba(29, 155, 240, 0.3);
+      color: #1d9bf0; font-size: 0.65rem; font-weight: bold;
+      border-radius: 6px; cursor: pointer; transition: all 0.2s;
+      text-decoration: none; width: fit-content;
+    }
+    .gallery-share:hover { background: rgba(29, 155, 240, 0.15); border-color: #1d9bf0; }
+    .gallery-share svg { width: 14px; height: 14px; fill: currentColor; }
     .gallery-empty {
       text-align: center; color: #888; padding: 3rem; font-size: 1rem;
       grid-column: 1 / -1;
@@ -2340,12 +2350,21 @@
           const card = document.createElement('div');
           card.className = 'gallery-card';
           const timeAgo = getTimeAgo(new Date(d.created_at));
+          const prompt = d.prompt || 'free draw';
+          const tweetText = encodeURIComponent(
+            `Pippin asked me to "${prompt}" and I delivered ne! 🎨🦄\n\nPippin's Groundhog Day — an AI unicorn trapped in a time loop desu\n\nCA: 4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump\n\npippingroundhog.com`
+          );
+          const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
           card.innerHTML = `
-            <img src="${d.image_data}" alt="${d.prompt || 'drawing'}" loading="lazy" />
+            <img src="${d.image_data}" alt="${prompt}" loading="lazy" />
             <div class="gallery-card-info">
-              <div class="gallery-prompt">${d.prompt || 'free draw'}</div>
+              <div class="gallery-prompt">${prompt}</div>
               <div class="gallery-artist">by ${d.artist} ${d.wallet ? '(' + d.wallet + ')' : ''}</div>
               <div class="gallery-time">${timeAgo}</div>
+              <a class="gallery-share" href="${tweetUrl}" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                Share on X
+              </a>
             </div>
           `;
           grid.appendChild(card);
@@ -3020,7 +3039,16 @@
         });
         const data = await res.json();
         if (data.success) {
-          taskReward.textContent = '+' + (data.reward || 10) + ' happiness! ピピンが喜んでいます！';
+          taskReward.innerHTML = '+' + (data.reward || 10) + ' happiness! ピピンが喜んでいます！';
+
+          // Add share-on-X button for drawing tasks
+          if (currentTask.type === 'draw') {
+            const shareText = encodeURIComponent(
+              `Pippin asked me to "${currentTask.en || currentTask.jp}" and I delivered ne! 🎨🦄\n\nPippin's Groundhog Day — an AI unicorn trapped in a time loop desu\n\nCA: 4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump\n\npippingroundhog.com`
+            );
+            taskReward.innerHTML += ` <a href="https://twitter.com/intent/tweet?text=${shareText}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:3px;color:#1d9bf0;font-size:0.7rem;text-decoration:none;background:rgba(29,155,240,0.1);padding:2px 8px;border-radius:4px;margin-left:6px;border:1px solid rgba(29,155,240,0.3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Share</a>`;
+          }
+
           // Update happiness meter
           updateHappiness(data.happiness);
 
