@@ -525,10 +525,10 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
             participant_id: participant.id,
             task_type,
             task_prompt: task_prompt || '',
-            task_response: task_response || '',
+            task_response: (task_response || '').substring(0, 1000),
             completed: false,
             happiness_reward: 0,
-          });
+          }).catch(e => console.warn('Rejected task save error:', e.message));
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
@@ -549,29 +549,30 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
         const lifeScale = lifeNum <= 1 ? 1 : lifeNum <= 2 ? 0.7 : lifeNum <= 3 ? 0.45 : lifeNum <= 4 ? 0.3 : lifeNum <= 5 ? 0.2 : 0.12;
         const happinessReward = Math.max(0.2, Math.round(baseReward * lifeScale * 10) / 10);
 
-        // Create task record
-        const { data: task } = await supabase
+        // Create task record (truncate response to avoid DB overflow — image_data is stored separately)
+        const { data: task, error: taskError } = await supabase
           .from('tasks')
           .insert({
             participant_id: participant.id,
             task_type,
             task_prompt: task_prompt || '',
-            task_response: task_response || '',
+            task_response: (task_response || '').substring(0, 1000),
             completed: true,
             happiness_reward: happinessReward,
             completed_at: new Date().toISOString(),
           })
           .select()
           .single();
+        if (taskError) console.warn('Task insert error:', taskError.message);
 
         // Save drawing if it's a draw task
-        if (task_type === 'draw' && image_data) {
+        if (task_type === 'draw' && image_data && task) {
           await supabase.from('drawings').insert({
             participant_id: participant.id,
             task_id: task.id,
             image_data,
             prompt: task_prompt || '',
-          });
+          }).catch(e => console.warn('Drawing save error:', e.message));
         }
 
         // Add raffle entry
