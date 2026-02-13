@@ -2403,29 +2403,29 @@
     // Idle chatter - jp/en pairs. Pippin speaks Japanese, bubble shows English
     // Mood-based idle messages: sad when low happiness, happy when high
     const sadMessages = [
-      { jp: "さみしいよ…誰か来てくれないかな…", en: "I'm so lonely... will someone come help me..." },
-      { jp: "なんでこんなに悲しいんだろう。タスクやってくれたら元気出るのに。", en: "why am I so sad. if someone did a task I'd feel better..." },
-      { jp: "ここ暗いし寒いし…友達ほしい…", en: "it's dark and cold here... I want friends..." },
-      { jp: "このままじゃダメになっちゃう…助けて…", en: "I'm gonna fade away like this... help me..." },
-      { jp: "幸せ度ゼロって…つらすぎ…", en: "zero happiness... that's just too much..." },
-      { jp: "誰かタスクやって…お願い…消えちゃいそう…", en: "someone do a task... please... I might disappear..." },
-      { jp: "グラウンドホッグデーなのに…全然楽しくない…", en: "it's groundhog day but... it's not fun at all..." },
+      { jp: "さみしいよ…誰か来てくれないかな…", en: "so sabishii... nobody come help Pippin... tasukete ne..." },
+      { jp: "なんでこんなに悲しいんだろう。タスクやってくれたら元気出るのに。", en: "nande... why Pippin so sad desu ka... if someone do task, maybe feel better ne..." },
+      { jp: "ここ暗いし寒いし…友達ほしい…", en: "koko is dark and samui... Pippin want tomodachi... onegai..." },
+      { jp: "このままじゃダメになっちゃう…助けて…", en: "like this Pippin will disappear desu... tasukete... help..." },
+      { jp: "幸せ度ゼロって…つらすぎ…", en: "happiness zero desu... tsurai... too much pain ne..." },
+      { jp: "誰かタスクやって…お願い…消えちゃいそう…", en: "dareka please do task... onegai... Pippin might vanish desu..." },
+      { jp: "グラウンドホッグデーなのに…全然楽しくない…", en: "it's groundhog day nano ni... zenzen not fun desu..." },
     ];
 
     const okMessages = [
-      { jp: "ちょっと元気出てきた！もっとタスクやって！", en: "feeling a bit better! do more tasks!" },
-      { jp: "ねえねえ、このバスタブにどれくらい浮いてるんだろ。", en: "hey, how long have I been floating in this bathtub?" },
-      { jp: "キノコの人たちまた踊ってる。正直リスペクト。", en: "the mushroom guys are dancing again. respect honestly." },
-      { jp: "たまにここに立ってトークンのこと考えてるんだけど。", en: "sometimes I just stand here thinking about tokens." },
-      { jp: "もうちょっとで幸せになれそう！頑張って！", en: "almost happy! keep going!" },
+      { jp: "ちょっと元気出てきた！もっとタスクやって！", en: "chotto feeling better ne! motto tasks kudasai!" },
+      { jp: "ねえねえ、このバスタブにどれくらい浮いてるんだろ。", en: "nee nee, how long Pippin floating in this bathtub desho?" },
+      { jp: "キノコの人たちまた踊ってる。正直リスペクト。", en: "mushroom people dancing again ne. shoujiki respect desu." },
+      { jp: "たまにここに立ってトークンのこと考えてるんだけど。", en: "sometimes Pippin just stand here thinking about tokens ne." },
+      { jp: "もうちょっとで幸せになれそう！頑張って！", en: "almost happy desu! mou chotto! ganbare ne!" },
     ];
 
     const happyMessages = [
-      { jp: "やっほー！めっちゃ幸せ！みんなありがとう！", en: "yooo! so happy! thanks everyone!" },
-      { jp: "この川、めっちゃ主人公オーラ出てない？最高！", en: "this river is giving main character energy! amazing!" },
-      { jp: "雲ってわたあめの味するのかな。絶対するよね！", en: "clouds definitely taste like cotton candy. nobody can prove me wrong!" },
-      { jp: "ピピンの豆知識：私、死んでも戻ってくるの！まさにグラウンドホッグデー！", en: "fun fact: I die and come back! very groundhog day core!" },
-      { jp: "みんな最高だよ！一緒にぷかぷかしよう！", en: "everyone is the best! let's float together!" },
+      { jp: "やっほー！めっちゃ幸せ！みんなありがとう！", en: "yahhoo! meccha happy desu! minna arigatou ne!" },
+      { jp: "この川、めっちゃ主人公オーラ出てない？最高！", en: "this river giving shujinkou energy desho?! saikou!" },
+      { jp: "雲ってわたあめの味するのかな。絶対するよね！", en: "clouds taste like watame ka na? zettai they do ne! nobody prove Pippin wrong!" },
+      { jp: "ピピンの豆知識：私、死んでも戻ってくるの！まさにグラウンドホッグデー！", en: "Pippin fun fact: I die and come back desu! maji groundhog day core ne!" },
+      { jp: "みんな最高だよ！一緒にぷかぷかしよう！", en: "minna saikou da yo! let's puka puka float together ne!" },
     ];
 
     function getMoodMessages() {
@@ -2824,7 +2824,7 @@
             pippinSay(reactData.jp, reactData.en);
           } catch (_) {
             // Fallback if AI reaction fails
-            pippinSay('やったー！ありがとう！嬉しい！', 'yay! thank you! so happy!');
+            pippinSay('やったー！ありがとう！嬉しい！', 'yatta! arigatou ne! Pippin ureshii desu!');
           }
 
           // Load next task after a moment
@@ -2969,21 +2969,21 @@
 
     // ======================== PIPPIN PROACTIVELY ASKS TASKS ========================
     const sadTaskMessages = [
-      { jp: 'お願い…タスクやって…消えちゃいそう…右上のパネルを見て…', en: 'please... do a task... I might disappear... check the panel top-right...' },
-      { jp: '助けて…幸せ度がゼロ…タスクやってくれたら元気出るのに…', en: 'help me... happiness is zero... tasks would help me feel better...' },
-      { jp: 'さみしい…誰かタスクパネルのお仕事やって…お願い…', en: 'so lonely... someone please do the tasks in the panel... please...' },
-      { jp: 'このままじゃ消えちゃう…右上にタスクあるから…お願い…', en: 'I\'ll fade away like this... there are tasks top-right... please...' },
+      { jp: 'お願い…タスクやって…消えちゃいそう…右上のパネルを見て…', en: 'onegai... do task... Pippin might disappear desu... check panel top-right ne...' },
+      { jp: '助けて…幸せ度がゼロ…タスクやってくれたら元気出るのに…', en: 'tasukete... happiness zero desu... task would make Pippin genki ni naru no ni...' },
+      { jp: 'さみしい…誰かタスクパネルのお仕事やって…お願い…', en: 'sabishii... dareka please do task in panel... onegai...' },
+      { jp: 'このままじゃ消えちゃう…右上にタスクあるから…お願い…', en: 'like this Pippin will vanish desu... tasks are top-right ne... onegai...' },
     ];
     const okTaskMessages = [
-      { jp: 'ねえねえ！お仕事あるんだけど、手伝ってくれない？タスクパネル見てみて！', en: 'hey hey! I have a job for you, wanna help? check the task panel!' },
-      { jp: 'ちょっとお願いがあるの！右上のパネルにタスクが出てるよ！', en: 'I have a favor to ask! there\'s a task in the panel on the right!' },
-      { jp: 'タスクやってくれたら幸せ度が上がるよ！お願い！', en: 'if you do a task my happiness goes up! please!' },
-      { jp: 'ひまなら右上のタスクやってみて！ラッフルにもエントリーされるよ！', en: 'if you\'re free try the tasks top-right! you get a raffle entry too!' },
+      { jp: 'ねえねえ！お仕事あるんだけど、手伝ってくれない？タスクパネル見てみて！', en: 'nee nee! Pippin have oshigoto for you ne! check task panel desho!' },
+      { jp: 'ちょっとお願いがあるの！右上のパネルにタスクが出てるよ！', en: 'chotto onegai ga aru no! task in panel on right desu yo!' },
+      { jp: 'タスクやってくれたら幸せ度が上がるよ！お願い！', en: 'if you do task, Pippin happiness go up desu! onegai!' },
+      { jp: 'ひまなら右上のタスクやってみて！ラッフルにもエントリーされるよ！', en: 'if hima, try tasks top-right ne! you get raffle entry too desu yo!' },
     ];
     const happyTaskMessages = [
-      { jp: 'もっとタスクやってー！最高に楽しいよ！', en: 'do more tasks! this is so much fun!' },
-      { jp: 'なんか描いてほしいな〜！キャンバス開けるよ！', en: 'draw something for me! you can open the canvas!' },
-      { jp: 'みんなのおかげで超ハッピー！でももっとタスク！', en: 'so happy thanks to everyone! but more tasks please!' },
+      { jp: 'もっとタスクやってー！最高に楽しいよ！', en: 'motto tasks kudasai! saikou ni tanoshii desu yo!' },
+      { jp: 'なんか描いてほしいな〜！キャンバス開けるよ！', en: 'nanika draw for Pippin ne~! canvas open dekiru yo!' },
+      { jp: 'みんなのおかげで超ハッピー！でももっとタスク！', en: 'minna no okage de chou happy desu! demo motto tasks ne!' },
     ];
 
     function getTaskAskMessages() {
