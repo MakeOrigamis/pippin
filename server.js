@@ -722,13 +722,68 @@ ONLY output the JSON. No markdown, no code blocks.`;
     return;
   }
 
+  // ======================== CDN ASSET PROXY ========================
+  // Large files hosted on GitHub Releases, cached locally on first request
+  const CDN_ASSETS = {
+    'models/lysergic_river.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_river.glb',
+    'models/lysergic_v2.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_v2.glb',
+    'music/bgm.mp3': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/bgm.mp3',
+  };
+
   // ======================== STATIC FILE SERVING ========================
   let filePath = '.' + decodeURIComponent(req.url.split('?')[0]);
   if (filePath === './') filePath = './pippin3d.html';
 
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+  const relPath = filePath.replace('./', '');
 
+  // Check if this is a CDN asset that needs to be fetched/cached
+  if (CDN_ASSETS[relPath] && !fs.existsSync(filePath)) {
+    const cdnUrl = CDN_ASSETS[relPath];
+    console.log(`CDN fetch: ${relPath} from ${cdnUrl.substring(0, 60)}...`);
+
+    // Ensure directory exists
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    // Download and cache
+    const download = (url) => {
+      const proto = url.startsWith('https') ? https : http;
+      proto.get(url, { headers: { 'User-Agent': 'PippinServer' } }, (dlRes) => {
+        if (dlRes.statusCode === 302 || dlRes.statusCode === 301) {
+          download(dlRes.headers.location); // follow redirect
+          return;
+        }
+        if (dlRes.statusCode !== 200) {
+          console.error(`CDN download failed: ${dlRes.statusCode}`);
+          res.writeHead(502);
+          res.end('CDN fetch failed');
+          return;
+        }
+        const tmpPath = filePath + '.tmp';
+        const ws = fs.createWriteStream(tmpPath);
+        dlRes.pipe(ws);
+        ws.on('finish', () => {
+          fs.renameSync(tmpPath, filePath);
+          console.log(`CDN cached: ${relPath} (${fs.statSync(filePath).size} bytes)`);
+          // Now serve it
+          serveFile(filePath, contentType, req, res);
+        });
+      }).on('error', (e) => {
+        console.error(`CDN error: ${e.message}`);
+        res.writeHead(502);
+        res.end('CDN fetch error');
+      });
+    };
+    download(cdnUrl);
+    return;
+  }
+
+  serveFile(filePath, contentType, req, res);
+});
+
+function serveFile(filePath, contentType, req, res) {
   fs.stat(filePath, (err, stats) => {
     if (err) {
       res.writeHead(404);
@@ -762,7 +817,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
       fs.createReadStream(filePath).pipe(res);
     }
   });
-});
+}
 
 server.listen(PORT, () => {
   console.log(`ピピンのグラウンドホッグデー running on port ${PORT}`);

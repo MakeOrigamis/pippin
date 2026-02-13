@@ -1242,7 +1242,7 @@
 
   <!-- Background Music -->
   <audio id="bgMusic" loop preload="auto">
-    <source src="https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/bgm.mp3" type="audio/mpeg">
+    <source src="music/bgm.mp3" type="audio/mpeg">
   </audio>
 
   <!-- Speech Bubble -->
@@ -1525,7 +1525,7 @@
     let landscapeBox = null;
 
     loadingStatus.textContent = 'loading river landscape...';
-    gltfLoader.load('https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_river.glb', (gltf) => {
+    gltfLoader.load('models/lysergic_river.glb', (gltf) => {
       riverScene = gltf.scene;
 
       const box = new THREE.Box3().setFromObject(riverScene);
@@ -1693,7 +1693,7 @@
 
     function loadCharacters(landscapeCenter, lBox) {
       loadingStatus.textContent = 'loading characters...';
-      gltfLoader.load('https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_v2.glb', (gltf) => {
+      gltfLoader.load('models/lysergic_v2.glb', (gltf) => {
         const charScene = gltf.scene;
 
         const charBox = new THREE.Box3().setFromObject(charScene);
