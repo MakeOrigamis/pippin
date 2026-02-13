@@ -106,6 +106,14 @@ const MIME_TYPES = {
   '.wav': 'audio/wav',
 };
 
+// Large files hosted on GitHub Releases, streamed to browser + cached locally
+const CDN_ASSETS = {
+  'models/lysergic_river.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_river.glb',
+  'models/lysergic_v2.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_v2.glb',
+  'music/bgm.mp3': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/bgm.mp3',
+};
+const cdnDownloading = {}; // Track in-progress downloads to avoid duplicates
+
 const server = http.createServer(async (req, res) => {
   // Enable CORS for all requests
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -745,14 +753,6 @@ ONLY output the JSON. No markdown, no code blocks.`;
     return;
   }
 
-  // ======================== CDN ASSET PROXY ========================
-  // Large files hosted on GitHub Releases, cached locally on first request
-  const CDN_ASSETS = {
-    'models/lysergic_river.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_river.glb',
-    'models/lysergic_v2.glb': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/lysergic_v2.glb',
-    'music/bgm.mp3': 'https://github.com/MakeOrigamis/pippin-assets/releases/download/v1/bgm.mp3',
-  };
-
   // ======================== STATIC FILE SERVING ========================
   let filePath = '.' + decodeURIComponent(req.url.split('?')[0]);
   if (filePath === './') filePath = './pippin3d.html';
@@ -761,45 +761,119 @@ ONLY output the JSON. No markdown, no code blocks.`;
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
   const relPath = filePath.replace('./', '');
 
-  // Check if this is a CDN asset that needs to be fetched/cached
+  // Check if this is a CDN asset that needs to be fetched/streamed
   if (CDN_ASSETS[relPath] && !fs.existsSync(filePath)) {
+    // If already downloading, wait for it to finish then serve from cache
+    if (cdnDownloading[relPath]) {
+      console.log(`CDN waiting (already downloading): ${relPath}`);
+      const check = setInterval(() => {
+        if (fs.existsSync(filePath)) {
+          clearInterval(check);
+          serveFile(filePath, contentType, req, res);
+        }
+      }, 1000);
+      // Timeout after 3 minutes
+      setTimeout(() => { clearInterval(check); if (!res.headersSent) { res.writeHead(504); res.end('Download timeout'); } }, 180000);
+      return;
+    }
+    cdnDownloading[relPath] = true;
     const cdnUrl = CDN_ASSETS[relPath];
-    console.log(`CDN fetch: ${relPath} from ${cdnUrl.substring(0, 60)}...`);
+    console.log(`CDN stream: ${relPath}`);
 
-    // Ensure directory exists
+    // Ensure directory exists for caching
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    // Download and cache
-    const download = (url) => {
-      const proto = url.startsWith('https') ? https : http;
-      proto.get(url, { headers: { 'User-Agent': 'PippinServer' } }, (dlRes) => {
+    // Follow redirects and stream directly to browser + cache to disk
+    const streamFromCDN = (url, redirects) => {
+      if (redirects > 5) {
+        console.error(`CDN too many redirects: ${relPath}`);
+        res.writeHead(502); res.end('Too many redirects');
+        return;
+      }
+      const parsedUrl = new URL(url);
+      const proto = parsedUrl.protocol === 'https:' ? https : http;
+      const reqOpts = {
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers: { 'User-Agent': 'PippinServer/1.0' },
+        timeout: 120000,
+      };
+      
+      proto.get(reqOpts, (dlRes) => {
         if (dlRes.statusCode === 302 || dlRes.statusCode === 301) {
-          download(dlRes.headers.location); // follow redirect
+          const loc = dlRes.headers.location;
+          console.log(`CDN redirect ${dlRes.statusCode}: ${relPath} -> ${loc.substring(0, 80)}...`);
+          dlRes.resume(); // consume response to free socket
+          streamFromCDN(loc, redirects + 1);
           return;
         }
         if (dlRes.statusCode !== 200) {
-          console.error(`CDN download failed: ${dlRes.statusCode}`);
-          res.writeHead(502);
-          res.end('CDN fetch failed');
+          console.error(`CDN failed ${dlRes.statusCode}: ${relPath}`);
+          res.writeHead(502); res.end('CDN fetch failed');
           return;
         }
+
+        const contentLen = dlRes.headers['content-length'];
+        console.log(`CDN streaming: ${relPath} (${contentLen ? (contentLen / 1048576).toFixed(1) + 'MB' : 'unknown size'})`);
+
+        // Send headers to browser immediately - stream while downloading
+        const headers = {
+          'Content-Type': contentType,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400',
+        };
+        if (contentLen) headers['Content-Length'] = contentLen;
+        res.writeHead(200, headers);
+
+        // Tee: stream to both browser and disk cache
         const tmpPath = filePath + '.tmp';
-        const ws = fs.createWriteStream(tmpPath);
-        dlRes.pipe(ws);
-        ws.on('finish', () => {
-          fs.renameSync(tmpPath, filePath);
-          console.log(`CDN cached: ${relPath} (${fs.statSync(filePath).size} bytes)`);
-          // Now serve it
-          serveFile(filePath, contentType, req, res);
+        const cacheStream = fs.createWriteStream(tmpPath);
+        let bytes = 0;
+
+        dlRes.on('data', (chunk) => {
+          bytes += chunk.length;
+          res.write(chunk);
+          cacheStream.write(chunk);
         });
+
+        dlRes.on('end', () => {
+          res.end();
+          cacheStream.end(() => {
+            try {
+              fs.renameSync(tmpPath, filePath);
+              console.log(`CDN cached: ${relPath} (${(bytes / 1048576).toFixed(1)}MB)`);
+            } catch (e) {
+              console.error(`CDN cache rename failed: ${e.message}`);
+            }
+            delete cdnDownloading[relPath];
+          });
+        });
+
+        dlRes.on('error', (e) => {
+          console.error(`CDN stream error: ${e.message}`);
+          res.end();
+          cacheStream.end();
+          try { fs.unlinkSync(tmpPath); } catch (_) {}
+          delete cdnDownloading[relPath];
+        });
+
+        // If browser disconnects, keep downloading for cache
+        req.on('close', () => {
+          // Don't abort dlRes - let it finish caching
+        });
+
       }).on('error', (e) => {
-        console.error(`CDN error: ${e.message}`);
-        res.writeHead(502);
-        res.end('CDN fetch error');
+        console.error(`CDN connect error: ${e.message}`);
+        delete cdnDownloading[relPath];
+        if (!res.headersSent) { res.writeHead(502); res.end('CDN error'); }
+      }).on('timeout', () => {
+        console.error(`CDN timeout: ${relPath}`);
+        delete cdnDownloading[relPath];
+        if (!res.headersSent) { res.writeHead(504); res.end('CDN timeout'); }
       });
     };
-    download(cdnUrl);
+    streamFromCDN(cdnUrl, 0);
     return;
   }
 
