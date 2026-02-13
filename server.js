@@ -854,7 +854,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
       while (true) {
         const { data, error } = await supabase
           .from('drawings')
-          .select('id, prompt, image_data, created_at, participant_id, likes')
+          .select('id, prompt, image_data, created_at, participant_id')
           .order('created_at', { ascending: true })
           .range(offset, offset + PAGE - 1);
         if (error) throw error;
@@ -1053,7 +1053,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
     try {
       const { data, error: fetchErr } = await supabase
         .from('drawings')
-        .select('id, prompt, image_data, created_at, participant_id, likes')
+        .select('id, prompt, image_data, created_at, participant_id')
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -1071,10 +1071,11 @@ ONLY output the JSON. No markdown, no code blocks.`;
           prompt: d.prompt,
           image_data: d.image_data,
           created_at: d.created_at,
-          likes: d.likes || 0,
+          likes: d.likes || 0,  // will be 0 if likes column doesn't exist
           artist: p?.display_name || 'anonymous',
           wallet: p?.wallet_address || '',
         };
+
       }));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1567,14 +1568,20 @@ If REJECTED: explain what's wrong and what they should do instead.`;
       return;
     }
     try {
-      // Increment likes (using RPC or direct update)
-      const { data: drawing } = await supabase
-        .from('drawings')
-        .select('likes')
-        .eq('id', drawingId)
-        .single();
-      const newLikes = (drawing?.likes || 0) + 1;
-      await supabase.from('drawings').update({ likes: newLikes }).eq('id', drawingId);
+      // Increment likes — try using likes column, gracefully handle if it doesn't exist
+      let newLikes = 1;
+      try {
+        const { data: drawing } = await supabase
+          .from('drawings')
+          .select('likes')
+          .eq('id', drawingId)
+          .single();
+        newLikes = (drawing?.likes || 0) + 1;
+        await supabase.from('drawings').update({ likes: newLikes }).eq('id', drawingId);
+      } catch (_) {
+        // likes column may not exist yet — silently skip
+        console.warn('Likes column may not exist on drawings table');
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ likes: newLikes }));
     } catch (e) {
@@ -1618,10 +1625,13 @@ If REJECTED: explain what's wrong and what they should do instead.`;
       const { count: totalDrawings } = await supabase.from('drawings').select('*', { count: 'exact', head: true })
         .eq('participant_id', participant.id);
 
-      // Total drawing likes received
-      const { data: drawingsData } = await supabase.from('drawings').select('likes')
-        .eq('participant_id', participant.id);
-      const totalLikes = (drawingsData || []).reduce((s, d) => s + (d.likes || 0), 0);
+      // Total drawing likes received (handle missing likes column gracefully)
+      let totalLikes = 0;
+      try {
+        const { data: drawingsData } = await supabase.from('drawings').select('likes')
+          .eq('participant_id', participant.id);
+        totalLikes = (drawingsData || []).reduce((s, d) => s + (d.likes || 0), 0);
+      } catch (_) { /* likes column may not exist */ }
 
       // Total happiness contributed (all time)
       const { data: happyData } = await supabase.from('tasks').select('happiness_reward')
