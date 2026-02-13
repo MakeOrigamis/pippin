@@ -3114,14 +3114,42 @@
         });
         puzzleGridContainer.innerHTML = html;
         puzzleContributeBtn.style.display = 'none';
+      } else if (currentPuzzle.puzzle_type === 'word_chain') {
+        // Word chain: show the chain of words linked together
+        const startWord = meta.startWord || 'Start';
+        let chainHtml = `<div style="font-size:0.6rem;color:#2ECDA7;margin-bottom:4px;">🔗 ${startWord}`;
+        contribs.forEach(c => {
+          chainHtml += ` → <span style="color:#F4D06F;">${c.response}</span> <span style="opacity:0.4;font-size:0.4rem;">(${c.name})</span>`;
+        });
+        chainHtml += '</div>';
+        if (contribs.length > 0) {
+          const lastWord = contribs[contribs.length - 1].response || startWord;
+          const lastLetter = lastWord.trim().slice(-1).toUpperCase();
+          chainHtml += `<div style="font-size:0.45rem;color:rgba(232,213,196,0.5);">Next word must start with: <span style="color:#e8a0bf;font-weight:bold;font-size:0.6rem;">${lastLetter}</span></div>`;
+        }
+        puzzleGridContainer.innerHTML = chainHtml;
+        puzzleContribsEl.innerHTML = '';
+        puzzleContributeBtn.textContent = '🔗 Add a word!';
+        puzzleContributeBtn.style.display = (alreadyContributed || currentPuzzle.completed) ? 'none' : '';
+      } else if (currentPuzzle.puzzle_type === 'caption') {
+        // Caption contest: show scenario + all submitted captions
+        let html = `<div style="font-size:0.5rem;color:#F4D06F;margin-bottom:4px;">📸 Scenario: "${meta.scenario || ''}"</div>`;
+        contribs.forEach((c, i) => {
+          html += `<div style="font-size:0.5rem;color:#E8D5C4;margin:2px 0;">💬 <span style="color:#e8a0bf;">${c.name}:</span> "${c.response}"</div>`;
+        });
+        puzzleGridContainer.innerHTML = html;
+        puzzleContribsEl.innerHTML = '';
+        puzzleContributeBtn.textContent = '💬 Write a caption!';
+        puzzleContributeBtn.style.display = (alreadyContributed || currentPuzzle.completed) ? 'none' : '';
       } else {
-        // Text-based puzzles (story etc) — simple contribute
+        // Story and other text-based puzzles
         puzzleGridContainer.innerHTML = '';
         if (contribs.length > 0) {
-          puzzleContribsEl.innerHTML = contribs.map(c => `<div>• ${c.name}: ${c.response}</div>`).join('');
+          puzzleContribsEl.innerHTML = contribs.map(c => `<div style="font-size:0.5rem;">• <span style="color:#e8a0bf;">${c.name}:</span> ${c.response}</div>`).join('');
         } else {
           puzzleContribsEl.innerHTML = '';
         }
+        puzzleContributeBtn.textContent = '📖 Add a sentence!';
         puzzleContributeBtn.style.display = (alreadyContributed || currentPuzzle.completed) ? 'none' : '';
       }
     }
@@ -3304,7 +3332,20 @@
         }
         return;
       }
-      const response = prompt('Your contribution to the puzzle:');
+      let promptMsg = 'Your contribution:';
+      if (currentPuzzle.puzzle_type === 'word_chain') {
+        const contribs = getPuzzleContribs();
+        const meta = getPuzzleMeta();
+        const lastWord = contribs.length > 0 ? contribs[contribs.length - 1].response : (meta.startWord || 'Start');
+        const lastLetter = lastWord.trim().slice(-1).toUpperCase();
+        promptMsg = `Word Chain! Type a word starting with "${lastLetter}" (last word was "${lastWord}"):`;
+      } else if (currentPuzzle.puzzle_type === 'caption') {
+        const meta = getPuzzleMeta();
+        promptMsg = `Write the funniest caption for: "${meta.scenario || ''}"`;
+      } else if (currentPuzzle.puzzle_type === 'story') {
+        promptMsg = 'Add the next sentence to the story:';
+      }
+      const response = prompt(promptMsg);
       if (response && response.trim()) {
         contributeToPuzzle(response.trim());
       }

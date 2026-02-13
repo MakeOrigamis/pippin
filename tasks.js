@@ -553,8 +553,11 @@ const TASK_TEMPLATES = [
 
 // ======================== GROUP PUZZLE TEMPLATES ========================
 // Collaborative puzzles: each player contributes a piece to build something together
+// 6 types that ROTATE: collab_draw → exquisite_corpse → riddle → story → word_chain → caption
+const PUZZLE_TYPES_ORDER = ['collab_draw', 'exquisite_corpse', 'riddle', 'story', 'word_chain', 'caption'];
+
 const PUZZLE_TEMPLATES = [
-  // ---- COLLABORATIVE DRAWING: 4 players each draw one quadrant ----
+  // ---- TYPE 1: COLLABORATIVE DRAWING — 4 players each draw one quadrant ----
   { type: 'collab_draw', grid: '2x2', jp: 'みんなでピピンの肖像画を描こう！', en: '🎨 Draw Pippin together! Each person draws one quarter of the portrait!', target: 4, subject: 'Pippin the unicorn portrait' },
   { type: 'collab_draw', grid: '2x2', jp: 'みんなで虹の景色を描こう！', en: '🎨 Draw a rainbow landscape together! Each person draws one section!', target: 4, subject: 'rainbow landscape' },
   { type: 'collab_draw', grid: '2x2', jp: '宇宙の絵をみんなで描こう！', en: '🎨 Draw outer space together! Each person draws one corner!', target: 4, subject: 'outer space scene' },
@@ -564,23 +567,41 @@ const PUZZLE_TEMPLATES = [
   { type: 'collab_draw', grid: '2x2', jp: 'サイケデリックな川をみんなで描こう！', en: '🎨 Draw the psychedelic river together! One section each!', target: 4, subject: 'psychedelic rainbow river' },
   { type: 'collab_draw', grid: '2x2', jp: '未来都市をみんなで描こう！', en: '🎨 Draw a futuristic city together! One quarter each!', target: 4, subject: 'futuristic neon city' },
 
-  // ---- EXQUISITE CORPSE: each person draws a body part (head/torso/legs) ----
+  // ---- TYPE 2: EXQUISITE CORPSE — each person draws a body part ----
   { type: 'exquisite_corpse', grid: '1x3', jp: '合体モンスターを作ろう！頭・体・足を別々の人が描く！', en: '🧟 Exquisite Corpse! Draw HEAD, BODY, or LEGS — each person draws one part! No peeking!', target: 3, parts: ['HEAD (top)', 'BODY (middle)', 'LEGS (bottom)'] },
   { type: 'exquisite_corpse', grid: '1x3', jp: '合体キャラクター！頭・体・足をそれぞれ描いて！', en: '🧟 Franken-character! Draw HEAD, BODY, or LEGS without seeing others!', target: 3, parts: ['HEAD (top)', 'BODY (middle)', 'LEGS (bottom)'] },
   { type: 'exquisite_corpse', grid: '1x3', jp: 'ピピンの変身！頭・体・足をそれぞれ描いて合体！', en: '🧟 Pippin Mashup! Draw Pippin HEAD, BODY, or LEGS — combine for surprise!', target: 3, parts: ['HEAD (top)', 'BODY (middle)', 'LEGS (bottom)'] },
+  { type: 'exquisite_corpse', grid: '1x3', jp: 'ロボットを組み立てよう！頭・体・足を描いて！', en: '🤖 Build a Robot! Draw the HEAD, BODY, or LEGS of a wild robot!', target: 3, parts: ['ROBOT HEAD', 'ROBOT BODY', 'ROBOT LEGS'] },
 
-  // ---- MULTI-PART RIDDLE: each person solves one clue ----
+  // ---- TYPE 3: MULTI-PART RIDDLE — each person solves one clue ----
   { type: 'riddle', jp: '暗号を解け！各自がヒントを一つ解いて！', en: '🔐 Crack the code! 4 clues, 4 solvers needed! Each person answers one clue!', target: 4,
     clues: ['What has keys but no locks? (answer: piano/keyboard)', 'What has a face but no eyes? (answer: clock)', 'What gets wetter the more it dries? (answer: towel)', 'What can travel around the world while staying in a corner? (answer: stamp)'] },
   { type: 'riddle', jp: 'なぞなぞリレー！一人一問解いて！', en: '🔐 Riddle relay! 4 riddles, one per person! Solve your clue!', target: 4,
     clues: ['I have cities but no houses. What am I? (answer: map)', 'I follow you but can\'t be caught. What am I? (answer: shadow)', 'The more you take, the more you leave behind. What? (answer: footsteps)', 'I speak without a mouth and hear without ears. What? (answer: echo)'] },
   { type: 'riddle', jp: 'クイズリレー！', en: '🔐 Quiz relay! Each person answers one question!', target: 4,
     clues: ['Name a country that starts with the letter J', 'Name a fruit that is red', 'Name an animal that lives in the ocean', 'Name a planet in our solar system'] },
+  { type: 'riddle', jp: 'ピピンクイズ！', en: '🔐 Pippin Trivia! Answer one question each!', target: 4,
+    clues: ['What color is Pippin? (describe the unicorn)', 'What is Pippin\'s favorite thing to do?', 'If Pippin could fly anywhere, where would it go?', 'What would Pippin eat for breakfast?'] },
 
-  // ---- COLLECTIVE STORY (kept, these work well) ----
+  // ---- TYPE 4: COLLECTIVE STORY — each person adds a sentence ----
   { type: 'story', jp: 'みんなで物語を作ろう！', en: '📖 Build a story together! Each person adds one sentence! Theme: "Pippin saves the world"', target: 6 },
   { type: 'story', jp: '共同ストーリー！', en: '📖 Collab story! One sentence each! Theme: "The mystery of the rainbow river"', target: 6 },
   { type: 'story', jp: 'みんなでストーリー！', en: '📖 Group story! Theme: "What happened when the mushrooms stopped dancing"', target: 6 },
+  { type: 'story', jp: 'ホラーストーリー！', en: '📖 Spooky story! One sentence each! Theme: "The haunted mushroom house at night"', target: 6 },
+  { type: 'story', jp: 'SF物語！', en: '📖 Sci-fi story! One sentence each! Theme: "Pippin discovers a portal to another dimension"', target: 6 },
+
+  // ---- TYPE 5: WORD CHAIN — each person adds a word that starts with the last letter ----
+  { type: 'word_chain', jp: 'しりとりリレー！最後の文字から始まる言葉を繋げよう！', en: '🔗 Word Chain! Type a word that starts with the LAST LETTER of the previous word! First word: "Unicorn"', target: 6, startWord: 'Unicorn' },
+  { type: 'word_chain', jp: 'しりとりチャレンジ！言葉を繋げていこう！', en: '🔗 Word Chain! Each word must start with the last letter of the previous! First word: "Magic"', target: 6, startWord: 'Magic' },
+  { type: 'word_chain', jp: 'しりとり動物編！動物の名前で繋げよう！', en: '🔗 Animal Word Chain! Name an animal starting with the last letter of the previous! First: "Eagle"', target: 6, startWord: 'Eagle' },
+  { type: 'word_chain', jp: 'しりとり食べ物編！食べ物の名前で繋げよう！', en: '🔗 Food Word Chain! Name a food starting with the last letter of the previous! First: "Apple"', target: 6, startWord: 'Apple' },
+
+  // ---- TYPE 6: CAPTION CONTEST — everyone writes a funny caption for a scenario ----
+  { type: 'caption', jp: 'おもしろキャプション大会！一番面白いのは誰？', en: '💬 Caption Contest! Write the funniest caption for: "Pippin accidentally sits on the king\'s throne"', target: 5, scenario: 'Pippin accidentally sits on the king\'s throne' },
+  { type: 'caption', jp: 'キャプションバトル！面白い説明を書こう！', en: '💬 Caption Contest! Write the funniest caption for: "Pippin tries to cook but sets the kitchen on fire"', target: 5, scenario: 'Pippin tries to cook but sets the kitchen on fire' },
+  { type: 'caption', jp: '爆笑キャプション！', en: '💬 Caption Contest! Funniest caption for: "Pippin discovers it can actually talk to mushrooms"', target: 5, scenario: 'Pippin discovers it can actually talk to mushrooms' },
+  { type: 'caption', jp: 'おもしろ一言！', en: '💬 Caption Contest! Funniest caption for: "Pippin shows up to a business meeting wearing a tiny hat"', target: 5, scenario: 'Pippin shows up to a business meeting wearing a tiny hat' },
+  { type: 'caption', jp: 'キャプション対決！', en: '💬 Caption Contest! Funniest caption for: "Pippin tries to dance but trips over its own horn"', target: 5, scenario: 'Pippin tries to dance but trips over its own horn' },
 ];
 
-module.exports = { TASK_TEMPLATES, PUZZLE_TEMPLATES };
+module.exports = { TASK_TEMPLATES, PUZZLE_TEMPLATES, PUZZLE_TYPES_ORDER };

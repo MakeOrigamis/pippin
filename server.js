@@ -36,7 +36,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('YOUR_')) {
 }
 
 // ======================== TASK TEMPLATES ========================
-const { TASK_TEMPLATES, PUZZLE_TEMPLATES } = require('./tasks.js');
+const { TASK_TEMPLATES, PUZZLE_TEMPLATES, PUZZLE_TYPES_ORDER } = require('./tasks.js');
 
 // Flatten all prompts into a single pool for truly random selection
 const ALL_TASKS = [];
@@ -1186,11 +1186,27 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
         .limit(1)
         .single();
 
-      // If no active puzzle, create one from imported templates
+      // If no active puzzle, create one — rotate through puzzle types
       if (!puzzle) {
-        const tmpl = PUZZLE_TEMPLATES[Math.floor(Math.random() * PUZZLE_TEMPLATES.length)];
+        // Find the last completed puzzle's type to determine which type is next
+        let nextType = PUZZLE_TYPES_ORDER[0];
+        const { data: lastPuzzle } = await supabase
+          .from('group_puzzles')
+          .select('puzzle_type')
+          .eq('life_number', lifeNum)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+          .catch(() => ({ data: null }));
+        if (lastPuzzle) {
+          const lastIdx = PUZZLE_TYPES_ORDER.indexOf(lastPuzzle.puzzle_type);
+          nextType = PUZZLE_TYPES_ORDER[(lastIdx + 1) % PUZZLE_TYPES_ORDER.length];
+        }
+        // Pick a random template of the chosen type
+        const candidates = PUZZLE_TEMPLATES.filter(t => t.type === nextType);
+        const tmpl = candidates[Math.floor(Math.random() * candidates.length)];
         // Store extra metadata in contributions JSONB as first entry with type "__meta"
-        const meta = { __meta: true, grid: tmpl.grid || null, subject: tmpl.subject || null, parts: tmpl.parts || null, clues: tmpl.clues || null };
+        const meta = { __meta: true, grid: tmpl.grid || null, subject: tmpl.subject || null, parts: tmpl.parts || null, clues: tmpl.clues || null, startWord: tmpl.startWord || null, scenario: tmpl.scenario || null };
         const { data: newPuzzle } = await supabase.from('group_puzzles').insert({
           puzzle_type: tmpl.type,
           prompt_jp: tmpl.jp,
