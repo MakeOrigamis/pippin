@@ -3890,6 +3890,15 @@
 
         // Gentle floating bob
         unicornContainer.position.y += Math.sin(elapsed * 1.5) * 0.002;
+
+        // Clamp position — keep unicorn within the scene bounds
+        if (landscapeBox) {
+          const margin = 2;
+          const minY = landscapeBox.min.y + 0.5; // don't go below the river surface
+          unicornContainer.position.x = Math.max(landscapeBox.min.x + margin, Math.min(landscapeBox.max.x - margin, unicornContainer.position.x));
+          unicornContainer.position.z = Math.max(landscapeBox.min.z + margin, Math.min(landscapeBox.max.z - margin, unicornContainer.position.z));
+          unicornContainer.position.y = Math.max(minY, Math.min(landscapeBox.max.y + 10, unicornContainer.position.y));
+        }
       }
 
       // ---- Camera follows unicorn (orbit mode) ----
