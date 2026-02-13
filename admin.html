@@ -72,11 +72,11 @@
   <h2>Winner History</h2>
   <div class="card" id="winnerHistory"></div>
 
-  <h2>All Participants</h2>
-  <div class="card" id="participantsList"></div>
+  <h2>🏆 Leaderboard — Current Life <button class="btn btn-pink" style="font-size:0.7rem;padding:0.3rem 0.8rem;margin-left:0.5rem;" onclick="loadLeaderboard('life')">This Life</button> <button class="btn btn-green" style="font-size:0.7rem;padding:0.3rem 0.8rem;" onclick="loadLeaderboard('global')">All Time</button></h2>
+  <div class="card" id="leaderboardList"></div>
 
-  <h2>Raffle Entries by Life</h2>
-  <div class="card" id="entriesList"></div>
+  <h2>All Participants (raw)</h2>
+  <div class="card" id="participantsList"></div>
 </div>
 
 <script>
@@ -147,22 +147,8 @@ async function refresh() {
     pHtml += '</table>';
     document.getElementById('participantsList').innerHTML = pHtml;
 
-    // Entries by life
-    const ebl = data.entries_by_life || {};
-    let eHtml = '';
-    Object.keys(ebl).sort((a, b) => b - a).forEach(life => {
-      const entries = ebl[life];
-      eHtml += `<h3 style="margin:0.5rem 0; color:#c4956a;">Life #${life} (${entries.length} entries)</h3>`;
-      const walletCounts = {};
-      entries.forEach(e => { walletCounts[e.wallet_address] = (walletCounts[e.wallet_address] || 0) + 1; });
-      eHtml += '<table><tr><th>Wallet</th><th>Entries</th></tr>';
-      Object.entries(walletCounts).sort((a, b) => b[1] - a[1]).forEach(([w, c]) => {
-        eHtml += `<tr><td class="wallet">${w}</td><td>${c}</td></tr>`;
-      });
-      eHtml += '</table>';
-    });
-    if (!eHtml) eHtml = '<p style="color:#888">No raffle entries yet</p>';
-    document.getElementById('entriesList').innerHTML = eHtml;
+    // Load leaderboard
+    await loadLeaderboard('life');
 
     showStatus('Refreshed', true);
   } catch (e) {
@@ -236,6 +222,43 @@ document.getElementById('lifeInput').addEventListener('input', () => {
   const dur = LIFE_DURATIONS[Math.min(v - 1, LIFE_DURATIONS.length - 1)];
   document.getElementById('lifeDurationHint').textContent = `→ ${dur >= 60 ? (dur / 60) + 'h' : dur + 'm'} timer`;
 });
+
+async function loadLeaderboard(scope) {
+  scope = scope || 'life';
+  const el = document.getElementById('leaderboardList');
+  el.innerHTML = '<p style="color:#888">Loading...</p>';
+  try {
+    const res = await fetch(`/api/ranking?scope=${scope}`);
+    const data = await res.json();
+    const players = data.players || [];
+    let title = scope === 'global'
+      ? `All Time — ${players.length} players`
+      : `Life #${data.life || '?'} — ${players.length} active players`;
+
+    let html = `<h3 style="margin:0 0 0.5rem; color:#c4956a;">${title}</h3>`;
+
+    if (players.length === 0) {
+      html += '<p style="color:#888">No players yet</p>';
+    } else {
+      html += '<table><tr><th>#</th><th>Name</th><th>Wallet</th><th>Tasks</th><th>Happiness</th><th>Entries</th></tr>';
+      players.forEach(p => {
+        const medal = p.rank <= 3 ? ['🥇','🥈','🥉'][p.rank-1] : '#' + p.rank;
+        html += `<tr${p.rank <= 3 ? ' style="background:rgba(232,160,191,0.08)"' : ''}>
+          <td>${medal}</td>
+          <td><b>${p.name || 'anon'}</b></td>
+          <td class="wallet">${p.wallet || '-'}</td>
+          <td style="text-align:center; font-weight:bold; color:#F4D06F;">${p.tasks}</td>
+          <td style="text-align:center;">${p.happiness}</td>
+          <td style="text-align:center; font-weight:bold; color:#e8a0bf;">${p.entries}</td>
+        </tr>`;
+      });
+      html += '</table>';
+    }
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<p style="color:#ef5350">Error loading leaderboard: ${e.message}</p>`;
+  }
+}
 
 // Auto-refresh every 30 seconds
 setInterval(() => { if (adminKey) refresh(); }, 30000);
