@@ -605,14 +605,17 @@ Examples of approval: any genuine attempt that relates to the prompt (even 1-sta
         }
 
         // ---- APPROVED: award rewards scaled by quality ----
-        // Quality multiplier: ★1=0.4x, ★2=0.7x, ★3=1.0x, ★4=1.5x, ★5=2.5x
-        const qualityMultipliers = { 1: 0.4, 2: 0.7, 3: 1.0, 4: 1.5, 5: 2.5 };
+        // Quality gives: ★1=1, ★2=1, ★3=2, ★4=3, ★5=5 base points
+        // Life scaling slows fill: later lives need more tasks to reach 100
+        const qualityRewards = { 1: 1, 2: 1, 3: 2, 4: 3, 5: 5 };
         const quality = reaction.quality || 3;
-        const qualityMult = qualityMultipliers[quality] || 1.0;
-        const baseReward = task_type === 'draw' ? 3 : 2;
-        const lifeScale = lifeNum <= 1 ? 1 : lifeNum <= 2 ? 0.7 : lifeNum <= 3 ? 0.45 : lifeNum <= 4 ? 0.3 : lifeNum <= 5 ? 0.2 : 0.12;
-        const happinessReward = Math.max(0.2, Math.round(baseReward * lifeScale * qualityMult * 10) / 10);
-        console.log(`Reward: base=${baseReward} × life=${lifeScale} × quality=${qualityMult}(★${quality}) = ${happinessReward}`);
+        const baseReward = qualityRewards[quality] || 2;
+        // Draw tasks get a small bonus
+        const typeBonus = task_type === 'draw' ? 1 : 0;
+        // Life scaling: L1=1x, L2=0.8x, L3=0.5x, L4=0.35x, L5=0.25x, L6+=0.15x
+        const lifeScale = lifeNum <= 1 ? 1 : lifeNum <= 2 ? 0.8 : lifeNum <= 3 ? 0.5 : lifeNum <= 4 ? 0.35 : lifeNum <= 5 ? 0.25 : 0.15;
+        const happinessReward = Math.max(1, Math.round((baseReward + typeBonus) * lifeScale));
+        console.log(`Reward: quality=★${quality}(${baseReward}+${typeBonus}) × life=${lifeScale} = ${happinessReward}`);
 
         // Create task record
         const { data: task, error: taskError } = await supabase
@@ -646,8 +649,8 @@ Examples of approval: any genuine attempt that relates to the prompt (even 1-sta
           })
           .eq('id', participant.id);
 
-        // Update global happiness (round since DB column is INT)
-        const newHappiness = Math.min(100, Math.round((globalState?.happiness || 0) + happinessReward));
+        // Update global happiness (reward is always >= 1 integer now)
+        const newHappiness = Math.min(100, (globalState?.happiness || 0) + happinessReward);
         await supabase
           .from('global_state')
           .update({
