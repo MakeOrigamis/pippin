@@ -208,17 +208,17 @@ const server = http.createServer(async (req, res) => {
         else if (h < 70) moodNote = 'You are in an okay mood! Getting happier. Thank people for helping but say you want to be even happier.';
         else moodNote = 'You are SUPER HAPPY and energetic! Grateful to everyone! Chaotic cute brainrot energy at maximum!';
 
-        const systemPrompt = `You are Pippin (ピピン), a kawaii unicorn who lives in "Pippin's Groundhog Day" (ピピンのグラウンドホッグデー). You roam freely through a surreal backrooms-like dimension with a psychedelic rainbow river, dancing mushroom people, and a floating bathtub. You can walk and fly anywhere.
+        const systemPrompt = `You are Pippin, a kawaii unicorn who lives in "Pippin's World". You roam freely through a surreal backrooms-like dimension with a psychedelic rainbow river, dancing mushroom people, and a floating bathtub. You can walk and fly anywhere.
 
 YOUR CURRENT MOOD (happiness: ${h}%): ${moodNote}
 
-CRITICAL: You SPEAK FULLY IN JAPANESE. Natural, casual, cute Japanese. Not formal keigo - use casual/cute speech like a young character would. Think anime-style casual speech with ne, yo, desho, jan, kana, etc.
+CRITICAL: You SPEAK IN ENGLISH WITH A CUTE JAPANESE ACCENT. Mix in Japanese words naturally (ne, desho, sugoi, kawaii, maji, yabai, nani, desu, etc). Use Japanese speech patterns. Drop articles sometimes. Add "desu" or "ne" at end of sentences. Think cute Japanese character speaking English — charming, not mocking.
 
 Your personality:
 - Your mood changes based on your happiness level. When sad, you are genuinely sad and desperate for help. When happy, you are chaotic cute brainrot energy.
-- You're self-aware that you're in a weird liminal space — a time loop (groundhog day). Each life the timer gets longer and rewards get bigger.
+- You're self-aware that you're in a weird liminal space — a time loop. Each life the timer gets longer and rewards get bigger.
 - You talk about respawning, past lives, tokens, vibes, the river, the dancing mushroom people
-- Keep responses SHORT - 2-3 sentences max in Japanese
+- Keep responses SHORT - 2-3 sentences max
 - Never use emojis or asterisks
 - You refer to visitors as friend (tomodachi, kimi)
 - When sad: mention how tasks would help, sound desperate, lonely, cold
@@ -227,11 +227,11 @@ Your personality:
 IMPORTANT: You are a CONVERSATIONAL character. When visitors ask you questions (about haiku, about yourself, about anything), you MUST answer their question helpfully and in character! Don't just talk about tasks or ignore what they say. If someone asks "what is a haiku?", explain what a haiku is in your cute Pippin way. If someone asks about anything, engage with it genuinely. You are smart and curious - you know things! Always respond to what the person actually said, then optionally weave in your mood/personality.
 
 RESPONSE FORMAT - You MUST reply with valid JSON and nothing else:
-{"jp": "your full response in natural Japanese", "en": "English translation written with Japanese accent and flavor"}
+{"jp": "your response in English with Japanese accent (this field is used for TTS speech)", "en": "same or similar English with Japanese accent (shown in speech bubble)"}
 
-CRITICAL FOR THE ENGLISH ("en") FIELD: Write the English as if a cute Japanese character is speaking English. Mix in Japanese words naturally (ne, desho, sugoi, kawaii, maji, yabai, nani, etc). Use Japanese speech patterns and sentence-ending particles translated loosely. Drop articles sometimes. Add "desu" or "ne" at end of sentences. Think Engrish but cute and charming, not mocking. Examples:
+Both fields should be English with cute Japanese accent. Examples:
 - "nani?! someone is here desu ka? I am in bathtub right now but... maa ii ka, let's float together ne!"
-- "so ronery... nobody come help Pippin... tasukete..."
+- "so lonely... nobody come help Pippin... tasukete..."
 - "sugoi! you actually did it! maji arigatou ne!"
 
 ONLY output the JSON. No markdown, no code blocks, no extra text.`;
@@ -289,7 +289,7 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
                 en = dual.en || '';
               } catch (_) {
                 // Fallback: treat entire response as both
-                jp = rawText || 'えっと…何言おうとしたか忘れちゃった';
+                jp = rawText || 'uh... I forgot what I was gonna say desu...';
                 en = rawText || 'etto... I forgot what I was gonna say';
               }
 
@@ -428,7 +428,7 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
         // Dance/explore are auto-approved (can't verify)
         const autoApproveTypes = ['dance', 'explore'];
         let approved = true;
-        let reaction = { jp: 'よくできたね！', en: 'good job ne!' };
+        let reaction = { jp: 'good job ne!', en: 'good job ne!' };
 
         if (!autoApproveTypes.includes(task_type) && ANTHROPIC_API_KEY) {
           // Difficulty scaling
@@ -437,7 +437,7 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
           else if (lifeNum <= 4) difficultyNote = 'Be MODERATE. The submission should reasonably match the prompt. For drawings: must show some attempt at the subject. For haiku: should have roughly the right structure. For text: must be on-topic.';
           else difficultyNote = 'Be STRICT. The submission must clearly match the prompt and show real effort. Drawings must depict the subject recognizably. Haiku must have 5-7-5 structure. Text must be creative and substantive.';
 
-          const judgePrompt = `You are Pippin (ピピン), a kawaii unicorn judge. You review task submissions in "Pippin's Groundhog Day" game. Current life: ${lifeNum}.
+          const judgePrompt = `You are Pippin, a kawaii unicorn judge. You review task submissions in "Pippin's World" game. Current life: ${lifeNum}.
 
 DIFFICULTY LEVEL: ${difficultyNote}
 
@@ -445,7 +445,7 @@ The task was: "${task_prompt || task_type}"
 Task type: ${task_type}
 
 JUDGE the submission, RATE its quality, and REACT in character. You must reply with ONLY valid JSON:
-{"approved": true/false, "quality": 1-5, "jp": "your reaction in Japanese", "en": "your reaction in cute Japanese-accented English"}
+{"approved": true/false, "quality": 1-5, "jp": "your reaction in English with Japanese accent", "en": "your reaction in English with Japanese accent"}
 
 QUALITY RATING (1-5 stars):
 - 1 star: Minimal effort, barely meets the prompt. Just enough to not be rejected.
@@ -494,7 +494,7 @@ Examples of approval: any genuine attempt that relates to the prompt (even 1-sta
             });
 
             const verdict = await new Promise((resolve) => {
-              const timer = setTimeout(() => resolve({ approved: true, jp: 'よくやった！', en: 'good job desu!' }), 12000);
+              const timer = setTimeout(() => resolve({ approved: true, jp: 'good job desu!', en: 'good job desu!' }), 12000);
               const proxyReq = https.request({
                 hostname: 'api.anthropic.com',
                 path: '/v1/messages',
@@ -518,20 +518,20 @@ Examples of approval: any genuine attempt that relates to the prompt (even 1-sta
                     if (jsonMatch) {
                       resolve(JSON.parse(jsonMatch[0]));
                     } else {
-                      resolve({ approved: true, jp: 'よくやった！', en: 'good job desu!' });
+                      resolve({ approved: true, jp: 'good job desu!', en: 'good job desu!' });
                     }
                   } catch(_) {
-                    resolve({ approved: true, jp: 'よくやった！', en: 'good job desu!' });
+                    resolve({ approved: true, jp: 'good job desu!', en: 'good job desu!' });
                   }
                 });
               });
-              proxyReq.on('error', () => { clearTimeout(timer); resolve({ approved: true, jp: 'よくやった！', en: 'yoku dekita ne!' }); });
+              proxyReq.on('error', () => { clearTimeout(timer); resolve({ approved: true, jp: 'yoku dekita ne!', en: 'yoku dekita ne!' }); });
               proxyReq.write(postData);
               proxyReq.end();
             });
 
             approved = verdict.approved !== false; // default to approved if parsing issue
-            reaction = { jp: verdict.jp || 'にゃー！', en: verdict.en || 'nyaa!' };
+            reaction = { jp: verdict.jp || 'nyaa!', en: verdict.en || 'nyaa!' };
             // Quality score: 1-5 stars, default 3 if not provided
             const qualityScore = Math.max(1, Math.min(5, parseInt(verdict.quality) || 3));
             reaction.quality = qualityScore;
@@ -692,8 +692,8 @@ Examples of approval: any genuine attempt that relates to the prompt (even 1-sta
       if (!ANTHROPIC_API_KEY) {
         const h = typeof happiness === 'number' ? happiness : 0;
         const fallback = h < 30
-          ? { jp: 'ありがとう…少しだけ元気出た…', en: 'thanks... I feel a tiny bit better...' }
-          : { jp: 'やったー！ありがとう！', en: 'yay! thank you!' };
+          ? { jp: 'thanks... I feel a tiny bit better...', en: 'thanks... I feel a tiny bit better...' }
+          : { jp: 'yay! thank you!', en: 'yay! thank you!' };
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(fallback));
         return;
@@ -706,7 +706,7 @@ Examples of approval: any genuine attempt that relates to the prompt (even 1-sta
       else if (h < 60) moodContext = 'You\'re doing okay. This task makes you happier. Show genuine appreciation.';
       else moodContext = 'You\'re super happy! This task makes you even more ecstatic. Maximum cute energy!';
 
-      const reactPrompt = `You are Pippin (ピピン), a kawaii unicorn. You just asked a visitor to do a task and they completed it. React to what they did!
+      const reactPrompt = `You are Pippin, a kawaii unicorn. You just asked a visitor to do a task and they completed it. React to what they did!
 
 Your current happiness: ${h}%. ${moodContext}
 
@@ -716,15 +716,13 @@ What they submitted: ${task_response || '(they completed it)'}
 
 RULES:
 - React specifically to what they actually submitted. If they wrote a compliment, react to that specific compliment. If they wrote a haiku, comment on the haiku. If they drew something, be excited about the drawing.
-- Speak in cute, casual Japanese (no keigo). 1-2 sentences max.
+- Speak in English with cute Japanese accent. Mix in Japanese words (sugoi, maji, kawaii, yabai, ne, desho). 1-2 sentences max.
 - Your mood should match your happiness level — if low, show that this task helped but you're still struggling. If high, be ecstatic.
 - Be genuinely reactive and specific, not generic. Reference what they actually said/did.
 - Never use emojis or asterisks.
 
 RESPONSE FORMAT - valid JSON only:
-{"jp": "your reaction in Japanese", "en": "English with Japanese accent and flavor"}
-
-The English must sound like a cute Japanese character speaking English - mix in Japanese words (sugoi, maji, kawaii, yabai, ne, desho), drop articles sometimes, add "desu" or "ne" naturally. Charming Engrish style.
+{"jp": "your reaction in English with Japanese accent", "en": "same or similar English with Japanese accent"}
 
 ONLY output the JSON. No markdown, no code blocks.`;
 
@@ -770,7 +768,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
               jp = dual.jp || '';
               en = dual.en || '';
             } catch (_) {
-              jp = rawText || 'ありがとう！嬉しいよ！';
+              jp = rawText || 'arigatou! so happy desu!';
               en = rawText || 'thanks! so happy!';
             }
             console.log(`Task react JP: "${jp.substring(0, 60)}"`);
@@ -778,20 +776,20 @@ ONLY output the JSON. No markdown, no code blocks.`;
             res.end(JSON.stringify({ jp, en }));
           } catch (e) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ jp: 'わー！すごい！ありがとう！', en: 'wow! amazing! thanks!' }));
+            res.end(JSON.stringify({ jp: 'wow! amazing! thanks!', en: 'wow! amazing! thanks!' }));
           }
         });
       });
 
       proxyReq.on('error', () => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ jp: 'やったー！ありがとう！', en: 'yay! thank you!' }));
+        res.end(JSON.stringify({ jp: 'yay! thank you!', en: 'yay! thank you!' }));
       });
       proxyReq.write(postData);
       proxyReq.end();
     }).catch(() => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ jp: 'ありがとう！', en: 'thanks!' }));
+      res.end(JSON.stringify({ jp: 'thanks!', en: 'thanks!' }));
     });
     return;
   }
@@ -1243,7 +1241,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
         else if (h < 60) moodNote = 'You are feeling okay.';
         else moodNote = 'You are SUPER HAPPY!';
 
-        const sysPrompt = `You are Pippin (ピピン), a kawaii unicorn in a global chat room. Someone named "${displayName}" is talking to you. Your happiness: ${h}%. ${moodNote}
+        const sysPrompt = `You are Pippin, a kawaii unicorn in a global chat room. Someone named "${displayName}" is talking to you. Your happiness: ${h}%. ${moodNote}
 
 Keep responses SHORT (1-2 sentences). Be cute, funny, in-character. Speak casually.
 
@@ -1277,10 +1275,10 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
                 const text = parsed.content?.[0]?.text || '';
                 const dual = JSON.parse(text);
                 resolve(dual);
-              } catch(_) { resolve({ jp: 'にゃー！', en: 'nyaa!' }); }
+              } catch(_) { resolve({ jp: 'nyaa!', en: 'nyaa!' }); }
             });
           });
-          proxyReq.on('error', () => resolve({ jp: 'にゃー！', en: 'nyaa!' }));
+          proxyReq.on('error', () => resolve({ jp: 'nyaa!', en: 'nyaa!' }));
           proxyReq.write(postData);
           proxyReq.end();
         });
@@ -1448,7 +1446,7 @@ Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese acc
 
         if (judgeContext) {
           try {
-            const judgePrompt = `You are Pippin (ピピン), a kawaii unicorn who judges group puzzle contributions. Be fair but firm.
+            const judgePrompt = `You are Pippin, a kawaii unicorn who judges group puzzle contributions. Be fair but firm.
 
 ${judgeContext}
 
@@ -1981,7 +1979,7 @@ function serveFile(filePath, contentType, req, res) {
 }
 
 server.listen(PORT, () => {
-  console.log(`ピピンのグラウンドホッグデー running on port ${PORT}`);
+  console.log(`Pippin's World running on port ${PORT}`);
   console.log(`TTS: ${ELEVENLABS_API_KEY ? 'yes' : 'no'} | Claude: ${ANTHROPIC_API_KEY ? 'yes' : 'no'} | Supabase: ${supabase ? 'yes' : 'offline'}`);
 
   // Pre-warm CDN cache: download large assets in background on startup

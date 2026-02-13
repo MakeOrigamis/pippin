@@ -1,10 +1,8 @@
-# Pippin's Groundhog Day
+# Pippin's World
 
-An interactive 3D experience featuring Pippin, an AI unicorn trapped in a psychedelic time loop. Built on the [Pippin Framework](https://pippin.love) for autonomous AI agents.
+An interactive 3D experience featuring Pippin, a kawaii AI unicorn in a magical dimension. Built on the [Pippin Framework](https://pippin.love) for autonomous AI agents.
 
 **Live:** [pippingroundhog.com](https://pippingroundhog.com)
-**CA (Solana):** `4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump`
-**Community:** [X Community](https://x.com/i/communities/2022161783868600757) | **Creator:** [@fizzyscabs](https://x.com/fizzyscabs)
 
 ---
 
@@ -124,7 +122,7 @@ Draw, Haiku, Story, Compliment, Dance, Explore, Trivia, Joke, Wish, Opinion — 
 
 All non-drawing puzzle contributions are AI-verified by BabyAGI3.
 
-## The Groundhog Day Loop
+## The Time Loop
 
 | Life | Timer | Difficulty |
 |------|-------|------------|
