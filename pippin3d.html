@@ -2446,7 +2446,7 @@
         const startPos = sceneCenter.clone();
         startPos.y += 2; // start floating a bit above ground
         unicornContainer.position.copy(startPos);
-        unicornGroundY = startPos.y; // floor: exactly at starting height (never sink below landscape)
+        unicornGroundY = sceneCenter.y; // floor: the actual landscape surface level
         dbg(`Unicorn placed at: (${startPos.x.toFixed(1)}, ${startPos.y.toFixed(1)}, ${startPos.z.toFixed(1)}) - floor Y: ${unicornGroundY.toFixed(1)}`);
 
         // Enable shadows
