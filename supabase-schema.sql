@@ -70,12 +70,44 @@ CREATE TABLE raffle_entries (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Global chat messages: player-to-player chat, activity events, Pippin responses
+CREATE TABLE chat_messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  wallet_address TEXT,               -- NULL for system/pippin messages
+  display_name TEXT DEFAULT 'explorer',
+  message TEXT NOT NULL,
+  message_type TEXT DEFAULT 'chat',  -- 'chat', 'activity', 'pippin'
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Migration for existing databases:
+-- CREATE TABLE IF NOT EXISTS chat_messages (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, wallet_address TEXT, display_name TEXT DEFAULT 'explorer', message TEXT NOT NULL, message_type TEXT DEFAULT 'chat', created_at TIMESTAMPTZ DEFAULT NOW());
+
+-- Group puzzles: collaborative tasks that need multiple players
+CREATE TABLE group_puzzles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  puzzle_type TEXT NOT NULL,          -- 'word_chain', 'count', 'story', 'emoji', 'trivia'
+  prompt_jp TEXT NOT NULL,
+  prompt_en TEXT NOT NULL,
+  target_count INT DEFAULT 5,
+  current_count INT DEFAULT 0,
+  contributions JSONB DEFAULT '[]',   -- [{wallet, name, response, time}]
+  life_number INT NOT NULL,
+  completed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Migration for existing databases:
+-- CREATE TABLE IF NOT EXISTS group_puzzles (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, puzzle_type TEXT NOT NULL, prompt_jp TEXT NOT NULL, prompt_en TEXT NOT NULL, target_count INT DEFAULT 5, current_count INT DEFAULT 0, contributions JSONB DEFAULT '[]', life_number INT NOT NULL, completed BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW());
+
 -- Enable Row Level Security
 ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drawings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE global_state ENABLE ROW LEVEL SECURITY;
 ALTER TABLE raffle_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_puzzles ENABLE ROW LEVEL SECURITY;
 
 -- Public read/write policies (since we use anon key through server proxy)
 CREATE POLICY "Allow all" ON participants FOR ALL USING (true) WITH CHECK (true);
@@ -83,3 +115,5 @@ CREATE POLICY "Allow all" ON tasks FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON drawings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON global_state FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON raffle_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON chat_messages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON group_puzzles FOR ALL USING (true) WITH CHECK (true);

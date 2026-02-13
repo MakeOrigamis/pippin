@@ -551,4 +551,45 @@ const TASK_TEMPLATES = [
   ]},
 ];
 
-module.exports = { TASK_TEMPLATES };
+// ======================== GROUP PUZZLE TEMPLATES ========================
+// These are used by the server to create collaborative puzzles in the chat
+const PUZZLE_TEMPLATES = [
+  // Word chains
+  { type: 'word_chain', jp: 'しりとりをしよう！前の言葉の最後の文字で始まる英語を書いて！最初の言葉は「unicorn」', en: 'Word chain ne! type English word starting with last letter of previous word! first word: "unicorn"', target: 8 },
+  { type: 'word_chain', jp: 'しりとりタイム！最後の文字で始まる言葉を書いて！スタート：「rainbow」', en: 'Word chain time! type word starting with last letter desu! start: "rainbow"', target: 8 },
+  { type: 'word_chain', jp: 'しりとりチャレンジ！「moon」から始めよう！', en: 'Word chain challenge ne! start from "moon" desu!', target: 8 },
+  { type: 'word_chain', jp: 'しりとりパーティー！「star」から始めるよ！', en: 'Word chain party ne! starting with "star"!', target: 8 },
+  { type: 'word_chain', jp: 'しりとりバトル！「dream」からスタート！', en: 'Word chain battle ne! start from "dream" desu!', target: 8 },
+
+  // Community counting
+  { type: 'count', jp: 'みんなで1から20まで数えよう！一人一つずつ！次の数字を書いて！', en: 'Count from 1 to 20 together ne! one number each! type next number desu!', target: 20 },
+  { type: 'count', jp: '3の倍数を数えよう！3, 6, 9... 一人一つずつ！', en: 'Count multiples of 3 ne! 3, 6, 9... one each desu!', target: 10 },
+  { type: 'count', jp: '逆カウントダウン！20から0まで！一人一つずつ！', en: 'Reverse countdown ne! 20 to 0! one each desu!', target: 20 },
+  { type: 'count', jp: 'フィボナッチを数えよう！1, 1, 2, 3, 5... 次の数字は？', en: 'Count Fibonacci ne! 1, 1, 2, 3, 5... what comes next desu?', target: 8 },
+
+  // Collective stories
+  { type: 'story', jp: 'みんなで物語を作ろう！一人一文ずつ追加して！テーマ：「ピピンの冒険」', en: 'Build a story together ne! one sentence each! theme: "Pippin adventure" desu!', target: 6 },
+  { type: 'story', jp: '共同ストーリー！一文ずつ追加！テーマ：「月で見つけたもの」', en: 'Collab story ne! one sentence each! theme: "what we found on the moon" desu!', target: 6 },
+  { type: 'story', jp: 'みんなでストーリー！テーマ：「虹の川の秘密」一人一文ずつ！', en: 'Group story ne! theme: "secret of the rainbow river" desu! one sentence each!', target: 6 },
+  { type: 'story', jp: '物語タイム！テーマ：「バスタブの旅」一文ずつ追加してね！', en: 'Story time ne! theme: "bathtub journey" desu! add one sentence!', target: 6 },
+  { type: 'story', jp: 'みんなで作る物語！テーマ：「踊るキノコの秘密」', en: 'Group story ne! theme: "secret of the dancing mushrooms" desu!', target: 6 },
+
+  // Emoji chains
+  { type: 'emoji', jp: '絵文字チェーン！一人一つ動物の絵文字を追加！被りはダメ！', en: 'Emoji chain ne! add one animal emoji each! no duplicates desu!', target: 10 },
+  { type: 'emoji', jp: '食べ物絵文字チェーン！一人一つ追加して！被りはダメ！', en: 'Food emoji chain ne! add one each! no duplicates desu!', target: 10 },
+  { type: 'emoji', jp: 'ランダム絵文字チェーン！なんでもOK！一人一つ！被りなし！', en: 'Random emoji chain ne! anything goes! one each desu! no duplicates!', target: 10 },
+  { type: 'emoji', jp: 'お花の絵文字を集めよう！一人一つ！', en: 'Collect flower emojis ne! one each desu!', target: 8 },
+  { type: 'emoji', jp: 'スポーツ絵文字チェーン！一人一つ追加！', en: 'Sports emoji chain ne! add one each desu!', target: 8 },
+
+  // Trivia
+  { type: 'trivia', jp: 'トリビアレース！「ユニコーンのツノは何でできてると言われている？」最初に正解した人がボーナス！', en: 'Trivia race ne! "what is unicorn horn said to be made of?" first correct answer gets bonus desu!', target: 1 },
+  { type: 'trivia', jp: 'トリビア！「虹は何色ある？」一番最初に正解した人の勝ち！', en: 'Trivia ne! "how many colors in a rainbow?" first correct answer wins desu!', target: 1 },
+  { type: 'trivia', jp: 'トリビア！「地球上で最も大きな動物は？」', en: 'Trivia ne! "what is the largest animal on Earth?" desu!', target: 1 },
+  { type: 'trivia', jp: 'トリビア！「太陽系で一番大きな惑星は？」', en: 'Trivia ne! "what is the largest planet in solar system?" desu!', target: 1 },
+  { type: 'trivia', jp: 'トリビア！「月まで光の速さでどのくらいかかる？」', en: 'Trivia ne! "how long does light take to reach the moon?" desu!', target: 1 },
+  { type: 'trivia', jp: 'トリビア！「世界で一番高い山は？」', en: 'Trivia ne! "what is tallest mountain in the world?" desu!', target: 1 },
+  { type: 'trivia', jp: 'トリビア！「水の化学式は？」', en: 'Trivia ne! "what is chemical formula for water?" desu!', target: 1 },
+  { type: 'trivia', jp: 'トリビア！「ビットコインの創設者のペンネームは？」', en: 'Trivia ne! "what is pen name of Bitcoin creator?" desu!', target: 1 },
+];
+
+module.exports = { TASK_TEMPLATES, PUZZLE_TEMPLATES };

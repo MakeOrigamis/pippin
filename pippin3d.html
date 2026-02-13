@@ -186,76 +186,7 @@
 
     /* Animation buttons removed - using view toggle only */
 
-    /* Chat input */
-    .chat-container {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 20;
-      padding: 1.2rem 2rem 1.5rem;
-      background: rgba(232, 213, 196, 0.75);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-top: 1px solid rgba(200, 180, 160, 0.4);
-    }
-
-    .chat-inner {
-      max-width: 600px;
-      margin: 0 auto;
-      display: flex;
-      gap: 0.8rem;
-      align-items: center;
-    }
-
-    .chat-input {
-      flex: 1;
-      background: var(--white);
-      border: 2px solid var(--cream-dark);
-      border-radius: 16px;
-      padding: 0.9rem 1.4rem;
-      font-family: 'Quicksand', sans-serif;
-      font-size: 1rem;
-      font-weight: 500;
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .chat-input:focus {
-      border-color: var(--pink);
-    }
-
-    .chat-input::placeholder {
-      color: #B8B0A4;
-    }
-
-    .chat-send {
-      background: var(--green);
-      color: white;
-      border: none;
-      border-radius: 14px;
-      padding: 0.9rem 1.5rem;
-      font-family: 'Baloo 2', cursive;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-
-    .chat-send:hover {
-      background: var(--green-light);
-      transform: scale(1.03);
-    }
-
-    .chat-send:active { transform: scale(0.97); }
-
-    .chat-hint {
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--text-light);
-      margin-top: 0.5rem;
-      font-weight: 500;
-    }
+    /* Old chat-container CSS removed — using global chat panel now */
 
     /* Loading overlay */
     /* old loading spinner - replaced by new loading screen */
@@ -648,6 +579,13 @@
       color: var(--gold);
       margin-top: 0.3rem;
     }
+    .task-retry-btn {
+      display: inline-block; margin-top: 0.3rem; padding: 0.25rem 0.7rem;
+      background: rgba(232, 90, 90, 0.15); border: 1px solid rgba(232, 90, 90, 0.3);
+      color: #e85a5a; border-radius: 6px; cursor: pointer; font-size: 0.65rem;
+      font-family: 'Quicksand', sans-serif;
+    }
+    .task-retry-btn:hover { background: rgba(232, 90, 90, 0.25); }
 
     /* ======================== WALLET JOIN ======================== */
     .wallet-panel {
@@ -692,32 +630,79 @@
       color: var(--green-light);
     }
 
-    /* ======================== ACTIVITY TICKER ======================== */
-    .activity-ticker {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      height: 28px;
-      background: rgba(26, 20, 16, 0.85);
-      border-top: 1px solid rgba(232, 213, 196, 0.1);
-      overflow: hidden;
-      z-index: 900;
-      display: flex; align-items: center;
+    /* ======================== GLOBAL CHAT PANEL ======================== */
+    .gchat-panel {
+      position: fixed; left: 0; top: 46px; bottom: 0;
+      width: 320px; z-index: 25;
+      background: rgba(26, 20, 16, 0.88);
+      border-right: 1px solid rgba(232, 213, 196, 0.1);
+      display: flex; flex-direction: column;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     }
-    .ticker-track {
-      display: flex; gap: 3rem;
-      white-space: nowrap;
-      animation: tickerScroll 40s linear infinite;
+    .gchat-header {
+      padding: 0.4rem 0.7rem; font-size: 0.7rem; color: #c4956a;
+      border-bottom: 1px solid rgba(232, 213, 196, 0.08);
+      font-family: 'Baloo 2', cursive; display: flex; align-items: center; gap: 0.4rem;
     }
-    @keyframes tickerScroll {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
+    .gchat-puzzle {
+      padding: 0.5rem 0.7rem;
+      background: rgba(232, 160, 191, 0.08);
+      border-bottom: 1px solid rgba(232, 213, 196, 0.08);
     }
-    .ticker-item {
-      font-family: 'Quicksand', sans-serif;
-      font-size: 0.65rem; color: rgba(232, 213, 196, 0.5);
+    .gchat-puzzle-title { font-size: 0.6rem; color: #e8a0bf; font-weight: bold; margin-bottom: 0.2rem; }
+    .gchat-puzzle-prompt { font-size: 0.65rem; color: #e8d5c4; margin-bottom: 0.3rem; }
+    .gchat-puzzle-bar-outer { height: 6px; background: rgba(232, 213, 196, 0.1); border-radius: 3px; overflow: hidden; }
+    .gchat-puzzle-bar-inner { height: 100%; background: linear-gradient(90deg, #e8a0bf, #c4956a); border-radius: 3px; transition: width 0.3s; }
+    .gchat-puzzle-count { font-size: 0.55rem; color: rgba(232, 213, 196, 0.4); margin-top: 0.2rem; }
+    .gchat-puzzle-btn {
+      margin-top: 0.3rem; padding: 0.2rem 0.5rem; font-size: 0.6rem;
+      background: rgba(232, 160, 191, 0.2); border: 1px solid rgba(232, 160, 191, 0.3);
+      color: #e8a0bf; border-radius: 4px; cursor: pointer;
     }
-    .ticker-item .ticker-name { color: #e8a0bf; }
-    .ticker-item .ticker-type { color: #c4956a; }
+    .gchat-puzzle-btn:hover { background: rgba(232, 160, 191, 0.35); }
+    .gchat-puzzle-contribs { font-size: 0.55rem; color: rgba(232, 213, 196, 0.35); margin-top: 0.2rem; max-height: 60px; overflow-y: auto; }
+    .gchat-messages {
+      flex: 1; overflow-y: auto; padding: 0.4rem;
+      display: flex; flex-direction: column; gap: 0.15rem;
+      scrollbar-width: thin; scrollbar-color: rgba(232, 213, 196, 0.1) transparent;
+    }
+    .gchat-msg {
+      font-family: 'Quicksand', sans-serif; font-size: 0.65rem;
+      padding: 0.2rem 0.4rem; border-radius: 4px; word-break: break-word;
+    }
+    .gchat-msg.type-chat { color: #e8d5c4; }
+    .gchat-msg.type-chat .gchat-name { color: #e8a0bf; font-weight: 600; }
+    .gchat-msg.type-activity { color: rgba(232, 213, 196, 0.35); font-size: 0.58rem; font-style: italic; }
+    .gchat-msg.type-pippin {
+      background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.15);
+      color: #c5b8e8;
+    }
+    .gchat-msg.type-pippin .gchat-name { color: #8b5cf6; font-weight: bold; }
+    .gchat-time { font-size: 0.45rem; color: rgba(232, 213, 196, 0.2); margin-left: 0.3rem; }
+    .gchat-input-area {
+      padding: 0.4rem; border-top: 1px solid rgba(232, 213, 196, 0.08);
+      display: flex; gap: 0.3rem;
+    }
+    .gchat-input {
+      flex: 1; background: rgba(232, 213, 196, 0.06); border: 1px solid rgba(232, 213, 196, 0.12);
+      border-radius: 6px; padding: 0.35rem 0.5rem; font-size: 0.7rem; color: #e8d5c4;
+      font-family: 'Quicksand', sans-serif; outline: none;
+    }
+    .gchat-input::placeholder { color: rgba(232, 213, 196, 0.25); }
+    .gchat-input:focus { border-color: rgba(232, 160, 191, 0.4); }
+    .gchat-send-btn {
+      padding: 0.3rem 0.6rem; background: rgba(232, 160, 191, 0.2);
+      border: 1px solid rgba(232, 160, 191, 0.3); border-radius: 6px;
+      color: #e8a0bf; font-size: 0.65rem; cursor: pointer;
+    }
+    .gchat-send-btn:hover { background: rgba(232, 160, 191, 0.35); }
+    .gchat-toggle {
+      display: none; position: fixed; left: 0.5rem; bottom: 60px;
+      z-index: 25; padding: 0.4rem 0.6rem; border-radius: 8px;
+      background: rgba(26, 20, 16, 0.85); border: 1px solid rgba(232, 213, 196, 0.15);
+      color: #e8a0bf; font-size: 0.75rem; cursor: pointer;
+    }
+    .gchat-toggle:hover { background: rgba(26, 20, 16, 0.95); }
 
     /* ======================== DRAW CANVAS OVERLAY ======================== */
     .canvas-overlay {
@@ -1213,10 +1198,6 @@
       .happiness-mini-bar { width: 40px; }
       .ranking-btn { font-size: 0.6rem; padding: 0.2rem 0.5rem; margin-left: 0.3rem; }
 
-      .chat-bar { padding: 0.6rem 0.8rem 0.8rem; }
-      .chat-input { padding: 0.6rem 0.9rem; font-size: 0.85rem; }
-      .chat-send { padding: 0.6rem 1rem; font-size: 0.85rem; }
-
       .speech-bubble {
         max-width: 70vw;
         font-size: 0.8rem;
@@ -1286,6 +1267,14 @@
       .brush-type-btn { font-size: 0.55rem; padding: 0.15rem 0.35rem; }
       .brush-row-label { font-size: 0.5rem; min-width: 25px; }
       .brush-row { gap: 0.25rem; flex-wrap: wrap; }
+
+      /* Global chat: collapsible on mobile */
+      .gchat-panel {
+        display: none;
+        width: 85vw; max-width: 320px;
+        z-index: 30;
+      }
+      .gchat-toggle { display: block; }
     }
 
     @media (max-width: 400px) {
@@ -1572,19 +1561,26 @@
     </div>
   </div>
 
-  <!-- Activity Ticker -->
-  <div class="activity-ticker" id="activityTicker">
-    <div class="ticker-track" id="tickerTrack"></div>
-  </div>
-
-  <!-- Chat -->
-  <div class="chat-container">
-    <div class="chat-inner">
-      <input type="text" class="chat-input" id="chatInput" placeholder="ピピンに話しかけて..." />
-      <button class="chat-send" id="chatSend">送る</button>
+  <!-- Global Chat Panel -->
+  <div class="gchat-panel" id="gchatPanel">
+    <div class="gchat-header">💬 Global Chat <span style="opacity:0.5;font-size:0.55rem">use @pippin to talk to Pippin</span></div>
+    <div class="gchat-puzzle" id="gchatPuzzle" style="display:none">
+      <div class="gchat-puzzle-title">🧩 GROUP PUZZLE</div>
+      <div class="gchat-puzzle-prompt" id="puzzlePrompt"></div>
+      <div class="gchat-puzzle-bar-outer"><div class="gchat-puzzle-bar-inner" id="puzzleBar" style="width:0%"></div></div>
+      <div class="gchat-puzzle-count" id="puzzleCount">0/5</div>
+      <div class="gchat-puzzle-contribs" id="puzzleContribs"></div>
+      <button class="gchat-puzzle-btn" id="puzzleContributeBtn" onclick="showPuzzleInput()">🎯 Contribute!</button>
     </div>
-    <div class="chat-hint">ピピンを見つけた。話しかけてみよう。</div>
+    <div class="gchat-messages" id="gchatMessages"></div>
+    <div class="gchat-input-area">
+      <input class="gchat-input" id="gchatInput" placeholder="Chat... or @pippin to talk to Pippin" maxlength="300" />
+      <button class="gchat-send-btn" id="gchatSend" onclick="sendGlobalChat()">送信</button>
+    </div>
   </div>
+  <button class="gchat-toggle" id="gchatToggle" onclick="toggleChatPanel()">💬</button>
+
+  <!-- Old Chat removed — now using Global Chat Panel -->
 
   <!-- Three.js via CDN -->
   <script type="importmap">
@@ -2570,8 +2566,6 @@
 
     // ======================== SPEECH / CHAT with TTS ========================
     const speechBubble = document.getElementById('speechBubble');
-    const chatInput = document.getElementById('chatInput');
-    const chatSend = document.getElementById('chatSend');
     let isSpeaking = false;
     let currentAudio = null;
     let ttsAbortController = null;
@@ -2698,59 +2692,216 @@
       }
     }
 
-    // Chat history for context
-    const chatHistory = [];
+    // ======================== GLOBAL CHAT ========================
+    const gchatMessages = document.getElementById('gchatMessages');
+    const gchatInput = document.getElementById('gchatInput');
+    const gchatSend = document.getElementById('gchatSend');
+    let lastChatMsgId = null;
+    let chatPollTimer = null;
 
-    async function handleChat() {
-      const msg = chatInput.value.trim();
-      if (!msg) return;
-
-      chatInput.value = '';
-      chatSend.disabled = true;
-
-      // Show typing...
-      showPippinSpeech('thinking...');
-
-      try {
-        // Call Claude API through our server
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg, history: chatHistory, happiness: currentHappiness }),
-        });
-
-        let jp, en;
-        if (response.ok) {
-          const data = await response.json();
-          jp = data.jp;
-          en = data.en;
-          // Save to history (store Japanese for Claude context)
-          chatHistory.push({ role: 'user', content: msg });
-          chatHistory.push({ role: 'assistant', content: jp });
-          // Keep history manageable
-          if (chatHistory.length > 12) chatHistory.splice(0, 2);
-        } else {
-          // Fallback to canned response
-          const fb = pippinResponses[Math.floor(Math.random() * pippinResponses.length)];
-          jp = fb.jp;
-          en = fb.en;
-          dbg('Claude API failed, using fallback');
-        }
-
-        pippinSay(jp, en);
-      } catch (err) {
-        console.warn('Chat error:', err);
-        const fb = pippinResponses[Math.floor(Math.random() * pippinResponses.length)];
-        pippinSay(fb.jp, fb.en);
-      }
-
-      chatSend.disabled = false;
+    function formatChatTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    chatSend.addEventListener('click', handleChat);
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleChat();
+    function renderChatMessage(msg) {
+      const div = document.createElement('div');
+      div.className = `gchat-msg type-${msg.message_type || 'chat'}`;
+      if (msg.message_type === 'activity') {
+        div.innerHTML = `<span class="gchat-time">${formatChatTime(msg.created_at)}</span> ${msg.display_name || 'explorer'} ${msg.message}`;
+      } else if (msg.message_type === 'pippin') {
+        div.innerHTML = `<span class="gchat-name">🦄 Pippin</span> <span class="gchat-time">${formatChatTime(msg.created_at)}</span><br>${msg.message}`;
+      } else {
+        div.innerHTML = `<span class="gchat-name">${msg.display_name || 'explorer'}</span> <span class="gchat-time">${formatChatTime(msg.created_at)}</span><br>${msg.message}`;
+      }
+      return div;
+    }
+
+    async function loadGlobalChat() {
+      try {
+        const res = await fetch('/api/chat/global');
+        if (!res.ok) return;
+        const messages = await res.json();
+        gchatMessages.innerHTML = '';
+        messages.forEach(m => gchatMessages.appendChild(renderChatMessage(m)));
+        gchatMessages.scrollTop = gchatMessages.scrollHeight;
+        if (messages.length > 0) lastChatMsgId = messages[messages.length - 1].id;
+      } catch(e) { console.warn('Chat load error:', e); }
+    }
+
+    async function pollChat() {
+      try {
+        const res = await fetch('/api/chat/global');
+        if (!res.ok) return;
+        const messages = await res.json();
+        if (messages.length === 0) return;
+        const lastId = messages[messages.length - 1].id;
+        if (lastId !== lastChatMsgId) {
+          gchatMessages.innerHTML = '';
+          messages.forEach(m => gchatMessages.appendChild(renderChatMessage(m)));
+          gchatMessages.scrollTop = gchatMessages.scrollHeight;
+          lastChatMsgId = lastId;
+        }
+      } catch(e) {}
+    }
+
+    window.sendGlobalChat = sendGlobalChat;
+    async function sendGlobalChat() {
+      const msg = gchatInput.value.trim();
+      if (!msg) return;
+      if (!currentWallet) {
+        alert('Please connect your wallet first!');
+        return;
+      }
+      gchatInput.value = '';
+      gchatSend.disabled = true;
+
+      // Check if it's a puzzle contribution
+      if (msg.toLowerCase().startsWith('/puzzle ')) {
+        const puzzleResponse = msg.substring(8).trim();
+        if (puzzleResponse && currentPuzzle) {
+          await contributeToPuzzle(puzzleResponse);
+        }
+        gchatSend.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/chat/global', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet: currentWallet,
+            name: currentDisplayName || 'explorer',
+            message: msg,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // If Pippin replied, show in speech bubble too
+          if (data.pippin) {
+            const en = data.pippin.en || data.pippin.jp || '';
+            const jp = data.pippin.jp || '';
+            if (en) pippinSay(jp, en);
+          }
+        }
+
+        // Immediate refresh
+        await pollChat();
+      } catch(e) {
+        console.warn('Send chat error:', e);
+      }
+
+      gchatSend.disabled = false;
+    }
+
+    gchatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendGlobalChat();
     });
+
+    // Start chat polling
+    loadGlobalChat();
+    chatPollTimer = setInterval(pollChat, 5000);
+
+    // ======================== GROUP PUZZLE ========================
+    let currentPuzzle = null;
+    const puzzleEl = document.getElementById('gchatPuzzle');
+    const puzzlePromptEl = document.getElementById('puzzlePrompt');
+    const puzzleBarEl = document.getElementById('puzzleBar');
+    const puzzleCountEl = document.getElementById('puzzleCount');
+    const puzzleContribsEl = document.getElementById('puzzleContribs');
+    const puzzleContributeBtn = document.getElementById('puzzleContributeBtn');
+
+    async function loadPuzzle() {
+      try {
+        const res = await fetch('/api/puzzle');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.puzzle) {
+          currentPuzzle = data.puzzle;
+          renderPuzzle();
+        } else {
+          puzzleEl.style.display = 'none';
+          currentPuzzle = null;
+        }
+      } catch(e) { console.warn('Puzzle load error:', e); }
+    }
+
+    function renderPuzzle() {
+      if (!currentPuzzle) { puzzleEl.style.display = 'none'; return; }
+      puzzleEl.style.display = 'block';
+      const isEN = langMode === 'en';
+      puzzlePromptEl.textContent = isEN ? currentPuzzle.prompt_en : currentPuzzle.prompt_jp;
+      const pct = Math.min(100, (currentPuzzle.current_count / currentPuzzle.target_count) * 100);
+      puzzleBarEl.style.width = pct + '%';
+      puzzleCountEl.textContent = `${currentPuzzle.current_count}/${currentPuzzle.target_count}`;
+
+      // Show contributions
+      const contribs = currentPuzzle.contributions || [];
+      if (contribs.length > 0) {
+        puzzleContribsEl.innerHTML = contribs.map(c => `<div>• ${c.name}: ${c.response}</div>`).join('');
+      } else {
+        puzzleContribsEl.innerHTML = '';
+      }
+
+      // Hide contribute button if already contributed or completed
+      if (currentPuzzle.completed || contribs.some(c => c.wallet === currentWallet)) {
+        puzzleContributeBtn.style.display = 'none';
+      } else {
+        puzzleContributeBtn.style.display = '';
+      }
+    }
+
+    window.showPuzzleInput = showPuzzleInput;
+    function showPuzzleInput() {
+      const response = prompt(langMode === 'en' ? 'Your contribution to the puzzle:' : 'パズルに貢献しよう！');
+      if (response && response.trim()) {
+        contributeToPuzzle(response.trim());
+      }
+    }
+
+    async function contributeToPuzzle(response) {
+      if (!currentPuzzle || !currentWallet) return;
+      try {
+        const res = await fetch('/api/puzzle/contribute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet: currentWallet,
+            name: currentDisplayName || 'explorer',
+            response: response,
+            puzzle_id: currentPuzzle.id,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.completed) {
+            playSfx('complete');
+            // Reload puzzle to get new one
+            setTimeout(loadPuzzle, 2000);
+          } else {
+            // Update local state
+            currentPuzzle.current_count = data.count;
+            currentPuzzle.contributions = data.contributions;
+            renderPuzzle();
+          }
+          // Refresh chat to see activity
+          pollChat();
+        }
+      } catch(e) { console.warn('Puzzle contribute error:', e); }
+    }
+
+    // Load puzzle on start and poll
+    loadPuzzle();
+    setInterval(loadPuzzle, 30000); // Refresh puzzle every 30s
+
+    // Mobile toggle
+    window.toggleChatPanel = toggleChatPanel;
+    function toggleChatPanel() {
+      const panel = document.getElementById('gchatPanel');
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    }
 
     // Idle chatter - jp/en pairs. Pippin speaks Japanese, bubble shows English
     // Mood-based idle messages: sad when low happiness, happy when high
@@ -3044,6 +3195,9 @@
     // ======================== WALLET + JOIN ========================
     let myWallet = localStorage.getItem('pippin_wallet') || '';
     let myParticipantId = null;
+    // Aliases for global chat system
+    let currentWallet = myWallet;
+    let currentDisplayName = localStorage.getItem('pippin_name') || 'explorer';
 
     const walletInput = document.getElementById('walletInput');
     const walletJoin = document.getElementById('walletJoin');
@@ -3077,6 +3231,8 @@
         const data = await res.json();
         if (data.id) {
           myWallet = wallet;
+          currentWallet = wallet;
+          currentDisplayName = data.display_name || name;
           myParticipantId = data.id;
           localStorage.setItem('pippin_wallet', wallet);
           localStorage.setItem('pippin_name', data.display_name || name);
@@ -3135,10 +3291,15 @@
       }
     }
 
+    let lastTaskResponse = null;
+    let lastTaskImageData = null;
+
     async function completeTask(response, imageData) {
       if (!myWallet || !currentTask) return;
       taskSubmit.disabled = true;
-      taskReward.textContent = '送信中...';
+      lastTaskResponse = response;
+      lastTaskImageData = imageData;
+      taskReward.innerHTML = '<span style="color:#c4956a">🦄 Pippin is judging...</span>';
 
       try {
         const res = await fetch('/api/task/complete', {
@@ -3153,8 +3314,23 @@
           }),
         });
         const data = await res.json();
+
+        if (data.approved === false) {
+          // REJECTED by Pippin
+          playSfx('reject');
+          const reactionEn = data.reaction?.en || 'try harder next time ne...';
+          const reactionJp = data.reaction?.jp || 'もう少し頑張って...';
+          taskReward.innerHTML = `<span style="color:#e85a5a">❌ Rejected!</span> ${reactionEn} <br><button class="task-retry-btn" onclick="retryTask()">🔄 Try Again</button>`;
+          pippinSay(reactionJp, reactionEn);
+          taskSubmit.disabled = false;
+          return;
+        }
+
         if (data.success) {
-          taskReward.innerHTML = '+' + (data.reward || 10) + ' happiness! ピピンが喜んでいます！';
+          playSfx('complete');
+          const reactionEn = data.reaction?.en || 'yatta! good job desu!';
+          const reactionJp = data.reaction?.jp || 'やったー！';
+          taskReward.innerHTML = '<span style="color:#8bc34a">✅ Approved!</span> +' + (data.reward || 2) + ' happiness! ' + reactionEn;
 
           // Add share-on-X button for drawing tasks
           if (currentTask.type === 'draw') {
@@ -3166,26 +3342,7 @@
 
           // Update happiness meter
           updateHappiness(data.happiness);
-
-          // Ask Pippin AI to react to what the user actually submitted
-          // For drawings, send the image so Pippin can "see" it via AI vision
-          try {
-            const reactRes = await fetch('/api/task/react', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                task_type: currentTask.type,
-                task_prompt: currentTask.jp,
-                task_response: (currentTask.type === 'draw' && imageData) ? imageData : (response || '(completed)'),
-                happiness: currentHappiness,
-              }),
-            });
-            const reactData = await reactRes.json();
-            pippinSay(reactData.jp, reactData.en);
-          } catch (_) {
-            // Fallback if AI reaction fails
-            pippinSay('やったー！ありがとう！嬉しい！', 'yatta! arigatou ne! Pippin ureshii desu!');
-          }
+          pippinSay(reactionJp, reactionEn);
 
           // Load next task after a moment
           setTimeout(() => { loadNewTask(); taskSubmit.disabled = false; }, 4000);
@@ -3197,6 +3354,36 @@
         taskReward.textContent = 'エラー: ' + e.message;
         taskSubmit.disabled = false;
       }
+    }
+
+    // Retry a rejected task
+    window.retryTask = function() {
+      taskReward.textContent = '';
+      taskSubmit.disabled = false;
+      // Re-show input for text tasks
+      if (currentTask && !['draw', 'dance', 'explore'].includes(currentTask.type)) {
+        taskInputArea.innerHTML = '<textarea class="task-input" id="taskResponse" rows="2" placeholder="ここに書いて..."></textarea>';
+        taskSubmit.textContent = '送る (submit)';
+        taskSubmit.onclick = () => {
+          const resp = document.getElementById('taskResponse').value.trim();
+          if (!resp) return;
+          completeTask(resp);
+        };
+      }
+    };
+
+    // Rejection buzz sound
+    function playSfxReject() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'square'; osc.frequency.value = 150;
+        gain.gain.value = 0.1;
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start(); osc.stop(ctx.currentTime + 0.4);
+      } catch(_) {}
     }
 
     taskSkip.addEventListener('click', loadNewTask);
@@ -3498,39 +3685,21 @@
           gain.gain.setValueAtTime(0.12, t);
           gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
           osc.start(t); osc.stop(t + 0.4);
+        } else if (type === 'reject') {
+          // Rejection buzz
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(150, t);
+          osc.frequency.setValueAtTime(100, t + 0.15);
+          gain.gain.setValueAtTime(0.1, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+          osc.start(t); osc.stop(t + 0.4);
         }
       } catch(_) {}
     }
 
-    // Hook sfx into existing events
-    const origCompleteTask = completeTask;
+    // Sound effects are now called directly from completeTask (approval/rejection)
 
-    // ======================== ACTIVITY TICKER ========================
-    const tickerTrack = document.getElementById('tickerTrack');
-    const typeEmojis = { draw: '🎨', haiku: '✍️', compliment: '💕', story: '📖', dance: '💃', explore: '🗺️', trivia: '🧠', joke: '😂', wish: '⭐', opinion: '💬' };
-
-    async function loadActivityFeed() {
-      try {
-        const res = await fetch('/api/activity');
-        const feed = await res.json();
-        if (!feed || feed.length === 0) {
-          tickerTrack.innerHTML = '<span class="ticker-item">Waiting for explorers to do tasks ne... be the first desu! 🦄</span>';
-          return;
-        }
-        // Create items, duplicate for seamless scroll
-        const items = feed.map(f => {
-          const emoji = typeEmojis[f.type] || '✨';
-          return `<span class="ticker-item">${emoji} <span class="ticker-name">${f.name}</span> did <span class="ticker-type">${f.type}</span></span>`;
-        }).join('');
-        tickerTrack.innerHTML = items + items; // duplicate for infinite scroll
-      } catch(_) {}
-    }
-
-    // Load feed after entering, refresh every 30s
-    document.getElementById('introEnter').addEventListener('click', () => {
-      setTimeout(loadActivityFeed, 3000);
-    });
-    setInterval(loadActivityFeed, 30000);
+    // Activity ticker removed — replaced by global chat panel
 
     // ======================== LIKE DRAWING (GLOBAL FUNCTION) ========================
     window.likeDrawing = async function(btn, drawingId) {

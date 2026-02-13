@@ -36,7 +36,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('YOUR_')) {
 }
 
 // ======================== TASK TEMPLATES ========================
-const { TASK_TEMPLATES } = require('./tasks.js');
+const { TASK_TEMPLATES, PUZZLE_TEMPLATES } = require('./tasks.js');
 
 // Flatten all prompts into a single pool for truly random selection
 const ALL_TASKS = [];
@@ -389,7 +389,7 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
     return;
   }
 
-  // ======================== COMPLETE TASK ========================
+  // ======================== COMPLETE TASK (with AI verification) ========================
   if (req.url === '/api/task/complete' && req.method === 'POST') {
     parseBody(req).then(async ({ wallet, task_type, task_prompt, task_response, image_data }) => {
       if (!wallet || !task_type) {
@@ -398,16 +398,15 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
         return;
       }
       if (!supabase) {
-        // Offline mode
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, happiness: 60, offline: true }));
+        res.end(JSON.stringify({ success: true, approved: true, happiness: 60, offline: true }));
         return;
       }
       try {
         // Find participant
         const { data: participant } = await supabase
           .from('participants')
-          .select('id, tasks_completed, total_happiness_contributed')
+          .select('id, display_name, tasks_completed, total_happiness_contributed')
           .eq('wallet_address', wallet)
           .single();
 
@@ -417,8 +416,132 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
           return;
         }
 
-        // Small increments - community must work together!
-        // Drawing: +3, other tasks: +2. Need ~40 tasks to fill bar.
+        // Get current life for difficulty scaling
+        const { data: globalState } = await supabase
+          .from('global_state')
+          .select('current_life, happiness, total_tasks_completed')
+          .eq('id', 1)
+          .single();
+        const lifeNum = globalState?.current_life || 1;
+
+        // ---- AI VERIFICATION ----
+        // Dance/explore are auto-approved (can't verify)
+        const autoApproveTypes = ['dance', 'explore'];
+        let approved = true;
+        let reaction = { jp: 'よくできたね！', en: 'good job ne!' };
+
+        if (!autoApproveTypes.includes(task_type) && ANTHROPIC_API_KEY) {
+          // Difficulty scaling
+          let difficultyNote = '';
+          if (lifeNum <= 2) difficultyNote = 'Be LENIENT. Accept any genuine attempt. Only reject blank submissions, random keyboard mashing, or completely off-topic spam. Even simple or rough attempts should pass.';
+          else if (lifeNum <= 4) difficultyNote = 'Be MODERATE. The submission should reasonably match the prompt. For drawings: must show some attempt at the subject. For haiku: should have roughly the right structure. For text: must be on-topic.';
+          else difficultyNote = 'Be STRICT. The submission must clearly match the prompt and show real effort. Drawings must depict the subject recognizably. Haiku must have 5-7-5 structure. Text must be creative and substantive.';
+
+          const judgePrompt = `You are Pippin (ピピン), a kawaii unicorn judge. You review task submissions in "Pippin's Groundhog Day" game. Current life: ${lifeNum}.
+
+DIFFICULTY LEVEL: ${difficultyNote}
+
+The task was: "${task_prompt || task_type}"
+Task type: ${task_type}
+
+JUDGE the submission and REACT to it in character. You must reply with ONLY valid JSON:
+{"approved": true/false, "jp": "your reaction in Japanese", "en": "your reaction in cute Japanese-accented English"}
+
+If APPROVED: be encouraging, cute, mention what you liked about it.
+If REJECTED: explain WHY in a fun way (not mean), encourage them to try harder. Be specific about what's wrong.
+
+Examples of rejection reasons: blank/empty drawing, random letters instead of real response, completely unrelated to prompt, zero effort.
+Examples of approval: any genuine attempt that relates to the prompt.`;
+
+          try {
+            let userContent;
+            if (task_type === 'draw' && image_data && image_data.startsWith('data:image')) {
+              // Use Claude Vision for drawings
+              userContent = [
+                { type: 'text', text: `Judge this drawing. The prompt was: "${task_prompt}". Does this drawing show a genuine attempt at drawing what was asked? Is it more than just blank or random scribbles?` },
+                { type: 'image', source: { type: 'base64', media_type: 'image/png', data: image_data.replace(/^data:image\/\w+;base64,/, '') } }
+              ];
+            } else {
+              userContent = `Judge this submission for the "${task_type}" task.\nPrompt: "${task_prompt}"\nSubmission: "${task_response || '(empty)'}"`;
+            }
+
+            const postData = JSON.stringify({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 250,
+              system: judgePrompt,
+              messages: [{ role: 'user', content: userContent }],
+            });
+
+            const verdict = await new Promise((resolve) => {
+              const timer = setTimeout(() => resolve({ approved: true, jp: 'よくやった！', en: 'good job desu!' }), 12000);
+              const proxyReq = https.request({
+                hostname: 'api.anthropic.com',
+                path: '/v1/messages',
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-api-key': ANTHROPIC_API_KEY,
+                  'anthropic-version': '2023-06-01',
+                  'Content-Length': Buffer.byteLength(postData),
+                }
+              }, (proxyRes) => {
+                let body = '';
+                proxyRes.on('data', d => body += d);
+                proxyRes.on('end', () => {
+                  clearTimeout(timer);
+                  try {
+                    const parsed = JSON.parse(body);
+                    const text = parsed.content?.[0]?.text || '';
+                    // Try to extract JSON from the response
+                    const jsonMatch = text.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      resolve(JSON.parse(jsonMatch[0]));
+                    } else {
+                      resolve({ approved: true, jp: 'よくやった！', en: 'good job desu!' });
+                    }
+                  } catch(_) {
+                    resolve({ approved: true, jp: 'よくやった！', en: 'good job desu!' });
+                  }
+                });
+              });
+              proxyReq.on('error', () => { clearTimeout(timer); resolve({ approved: true, jp: 'よくやった！', en: 'yoku dekita ne!' }); });
+              proxyReq.write(postData);
+              proxyReq.end();
+            });
+
+            approved = verdict.approved !== false; // default to approved if parsing issue
+            reaction = { jp: verdict.jp || 'にゃー！', en: verdict.en || 'nyaa!' };
+            console.log(`AI Judge: ${task_type} task ${approved ? 'APPROVED' : 'REJECTED'} (Life ${lifeNum})`);
+          } catch (judgeErr) {
+            console.warn('AI judge error, auto-approving:', judgeErr.message);
+            approved = true; // fail-open: if AI breaks, approve
+          }
+        }
+
+        // ---- If rejected, don't award anything ----
+        if (!approved) {
+          // Still save task record as not completed
+          await supabase.from('tasks').insert({
+            participant_id: participant.id,
+            task_type,
+            task_prompt: task_prompt || '',
+            task_response: task_response || '',
+            completed: false,
+            happiness_reward: 0,
+          });
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            approved: false,
+            reaction,
+            happiness: globalState?.happiness || 0,
+            reward: 0,
+          }));
+          return;
+        }
+
+        // ---- APPROVED: award rewards ----
         const happinessReward = task_type === 'draw' ? 3 : 2;
 
         // Create task record
@@ -447,16 +570,10 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
         }
 
         // Add raffle entry
-        const { data: globalState } = await supabase
-          .from('global_state')
-          .select('current_life')
-          .eq('id', 1)
-          .single();
-
         await supabase.from('raffle_entries').insert({
           participant_id: participant.id,
           wallet_address: wallet,
-          life_number: globalState?.current_life || 1,
+          life_number: lifeNum,
         });
 
         // Update participant stats
@@ -469,25 +586,28 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
           .eq('id', participant.id);
 
         // Update global happiness
-        const { data: state } = await supabase
-          .from('global_state')
-          .select('happiness, total_tasks_completed')
-          .eq('id', 1)
-          .single();
-
-        const newHappiness = Math.min(100, (state?.happiness || 0) + happinessReward);
+        const newHappiness = Math.min(100, (globalState?.happiness || 0) + happinessReward);
         await supabase
           .from('global_state')
           .update({
             happiness: newHappiness,
-            total_tasks_completed: (state?.total_tasks_completed || 0) + 1,
+            total_tasks_completed: (globalState?.total_tasks_completed || 0) + 1,
             updated_at: new Date().toISOString(),
           })
           .eq('id', 1);
 
-        console.log(`Task completed: ${wallet} did "${task_type}" (+${happinessReward} happiness)`);
+        // Post activity to global chat
+        const typeLabels = { draw: '🎨 drew something', haiku: '✍️ wrote a haiku', compliment: '💕 gave a compliment', story: '📖 told a story', dance: '💃 danced', explore: '🗺️ explored', trivia: '🧠 shared trivia', joke: '😂 told a joke', wish: '⭐ made a wish', opinion: '💬 shared an opinion' };
+        supabase.from('chat_messages').insert({
+          wallet_address: wallet,
+          display_name: participant.display_name || 'explorer',
+          message: typeLabels[task_type] || `completed a ${task_type} task`,
+          message_type: 'activity',
+        }).then(() => {}).catch(() => {});
+
+        console.log(`Task completed: ${wallet} did "${task_type}" (+${happinessReward} happiness) [APPROVED]`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, happiness: newHappiness, reward: happinessReward }));
+        res.end(JSON.stringify({ success: true, approved: true, reaction, happiness: newHappiness, reward: happinessReward }));
       } catch (e) {
         console.error('Task complete error:', e.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -903,6 +1023,281 @@ ONLY output the JSON. No markdown, no code blocks.`;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(feed));
     } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ======================== GLOBAL CHAT: GET MESSAGES ========================
+  if (req.url.startsWith('/api/chat/global') && req.method === 'GET') {
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify([]));
+      return;
+    }
+    try {
+      // Fetch last 50 messages from the past 24h
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .gte('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(50);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data || []));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ======================== GLOBAL CHAT: POST MESSAGE ========================
+  if (req.url === '/api/chat/global' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const { wallet, name, message } = body;
+    if (!message || !message.trim()) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'message required' }));
+      return;
+    }
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, offline: true }));
+      return;
+    }
+    try {
+      const displayName = name || 'explorer';
+      const msg = message.trim().substring(0, 300); // limit length
+
+      // Save chat message
+      await supabase.from('chat_messages').insert({
+        wallet_address: wallet || null,
+        display_name: displayName,
+        message: msg,
+        message_type: 'chat',
+      });
+
+      // Check if message is addressed to Pippin
+      const isPippinMsg = msg.toLowerCase().startsWith('@pippin') || msg.toLowerCase().startsWith('/pippin');
+      let pippinReply = null;
+
+      if (isPippinMsg && ANTHROPIC_API_KEY) {
+        const cleanMsg = msg.replace(/^[@/]pippin\s*/i, '').trim() || 'hello!';
+
+        // Get current happiness for mood
+        const { data: stateData } = await supabase.from('global_state').select('happiness').eq('id', 1).single();
+        const h = stateData?.happiness || 0;
+        let moodNote = '';
+        if (h < 30) moodNote = 'You are sad and lonely.';
+        else if (h < 60) moodNote = 'You are feeling okay.';
+        else moodNote = 'You are SUPER HAPPY!';
+
+        const sysPrompt = `You are Pippin (ピピン), a kawaii unicorn in a global chat room. Someone named "${displayName}" is talking to you. Your happiness: ${h}%. ${moodNote}
+
+Keep responses SHORT (1-2 sentences). Be cute, funny, in-character. Speak casually.
+
+Reply as JSON only: {"jp": "Japanese response", "en": "English with Japanese accent"}`;
+
+        const postData = JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 200,
+          system: sysPrompt,
+          messages: [{ role: 'user', content: cleanMsg }],
+        });
+
+        // Make Claude request
+        const pippinResponse = await new Promise((resolve) => {
+          const proxyReq = https.request({
+            hostname: 'api.anthropic.com',
+            path: '/v1/messages',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01',
+              'Content-Length': Buffer.byteLength(postData),
+            }
+          }, (proxyRes) => {
+            let body = '';
+            proxyRes.on('data', d => body += d);
+            proxyRes.on('end', () => {
+              try {
+                const parsed = JSON.parse(body);
+                const text = parsed.content?.[0]?.text || '';
+                const dual = JSON.parse(text);
+                resolve(dual);
+              } catch(_) { resolve({ jp: 'にゃー！', en: 'nyaa!' }); }
+            });
+          });
+          proxyReq.on('error', () => resolve({ jp: 'にゃー！', en: 'nyaa!' }));
+          proxyReq.write(postData);
+          proxyReq.end();
+        });
+
+        // Save Pippin's reply as a chat message
+        const pippinMsg = pippinResponse.en || pippinResponse.jp || 'nyaa!';
+        await supabase.from('chat_messages').insert({
+          wallet_address: null,
+          display_name: 'Pippin',
+          message: pippinMsg,
+          message_type: 'pippin',
+        });
+        pippinReply = pippinResponse;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, pippin: pippinReply }));
+    } catch (e) {
+      console.error('Global chat error:', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ======================== GROUP PUZZLE: GET ACTIVE ========================
+  if (req.url === '/api/puzzle' && req.method === 'GET') {
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ puzzle: null }));
+      return;
+    }
+    try {
+      const { data: state } = await supabase.from('global_state').select('current_life').eq('id', 1).single();
+      const lifeNum = state?.current_life || 1;
+
+      // Find active (not completed) puzzle for current life
+      let { data: puzzle } = await supabase
+        .from('group_puzzles')
+        .select('*')
+        .eq('life_number', lifeNum)
+        .eq('completed', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // If no active puzzle, create one from imported templates
+      if (!puzzle) {
+        const tmpl = PUZZLE_TEMPLATES[Math.floor(Math.random() * PUZZLE_TEMPLATES.length)];
+        const { data: newPuzzle } = await supabase.from('group_puzzles').insert({
+          puzzle_type: tmpl.type,
+          prompt_jp: tmpl.jp,
+          prompt_en: tmpl.en,
+          target_count: tmpl.target,
+          life_number: lifeNum,
+        }).select().single();
+        puzzle = newPuzzle;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ puzzle }));
+    } catch (e) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ puzzle: null }));
+    }
+    return;
+  }
+
+  // ======================== GROUP PUZZLE: CONTRIBUTE ========================
+  if (req.url === '/api/puzzle/contribute' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const { wallet, name, response, puzzle_id } = body;
+    if (!wallet || !response || !puzzle_id) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'wallet, response, and puzzle_id required' }));
+      return;
+    }
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, offline: true }));
+      return;
+    }
+    try {
+      const { data: puzzle } = await supabase
+        .from('group_puzzles')
+        .select('*')
+        .eq('id', puzzle_id)
+        .single();
+
+      if (!puzzle || puzzle.completed) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'puzzle not active', completed: true }));
+        return;
+      }
+
+      // Check if this wallet already contributed
+      const existing = (puzzle.contributions || []);
+      if (existing.some(c => c.wallet === wallet)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'already contributed', contributions: existing }));
+        return;
+      }
+
+      // Add contribution
+      const newContribution = { wallet, name: name || 'explorer', response: response.substring(0, 200), time: new Date().toISOString() };
+      const updatedContributions = [...existing, newContribution];
+      const newCount = updatedContributions.length;
+      const isCompleted = newCount >= puzzle.target_count;
+
+      await supabase.from('group_puzzles').update({
+        contributions: updatedContributions,
+        current_count: newCount,
+        completed: isCompleted,
+      }).eq('id', puzzle_id);
+
+      // Post activity to chat
+      await supabase.from('chat_messages').insert({
+        wallet_address: wallet,
+        display_name: name || 'explorer',
+        message: `contributed to group puzzle! (${newCount}/${puzzle.target_count})`,
+        message_type: 'activity',
+      });
+
+      // If completed, give rewards to all contributors
+      if (isCompleted) {
+        const { data: state } = await supabase.from('global_state').select('happiness, current_life').eq('id', 1).single();
+        const newHappiness = Math.min(100, (state?.happiness || 0) + 5);
+        await supabase.from('global_state').update({
+          happiness: newHappiness,
+          updated_at: new Date().toISOString(),
+        }).eq('id', 1);
+
+        // Bonus raffle entries for all contributors
+        for (const contrib of updatedContributions) {
+          const { data: p } = await supabase.from('participants').select('id').eq('wallet_address', contrib.wallet).single();
+          if (p) {
+            await supabase.from('raffle_entries').insert({
+              participant_id: p.id,
+              wallet_address: contrib.wallet,
+              life_number: state?.current_life || 1,
+            });
+          }
+        }
+
+        // Post completion to chat
+        await supabase.from('chat_messages').insert({
+          wallet_address: null,
+          display_name: 'Pippin',
+          message: `sugoi! group puzzle completed ne! +5 happiness for everyone desu! all contributors get bonus raffle entry!`,
+          message_type: 'pippin',
+        });
+
+        console.log(`Group puzzle completed! ${updatedContributions.length} contributors`);
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        ok: true,
+        completed: isCompleted,
+        count: newCount,
+        target: puzzle.target_count,
+        contributions: updatedContributions,
+      }));
+    } catch (e) {
+      console.error('Puzzle contribute error:', e.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
