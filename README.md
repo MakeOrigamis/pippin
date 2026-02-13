@@ -2,7 +2,7 @@
 
 An interactive 3D experience featuring Pippin, an AI unicorn trapped in a psychedelic time loop. Built on the [Pippin Framework](https://pippin.love) for autonomous AI agents.
 
-**Live:** [pippincook.up.railway.app](https://pippincook.up.railway.app)
+**Live:** [pippingroundhog.com](https://pippingroundhog.com)
 **CA (Solana):** `4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump`
 **Community:** [X Community](https://x.com/i/communities/2022161783868600757) | **Creator:** [@fizzyscabs](https://x.com/fizzyscabs)
 
