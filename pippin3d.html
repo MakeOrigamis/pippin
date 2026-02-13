@@ -2106,30 +2106,34 @@
             const isTranslation = track.name.endsWith('.position');
             const isRotation = track.name.endsWith('.quaternion');
 
-            // BLOCK rotation AND translation on orbit/root Dummy nodes
-            // These spin the whole scene and cause the headache-inducing rotation
-            if (nodeName.startsWith('Dummy') && !nodeName.startsWith('Dummy018')) return false;
-            if (nodeName.startsWith('CAT_') || nodeName.startsWith('FlowCAT') || nodeName.startsWith('CATWORM')) return false;
-            if (nodeName.includes('Smoke')) return false;
+            // BLOCK: Dummy orbit nodes (except Dummy018 for bathtub)
+            // These are root nodes whose rotation/translation orbits the entire scene
+            if (nodeName.startsWith('Dummy') && !nodeName.startsWith('Dummy018')) {
+              return false; // block all tracks on orbit Dummy nodes
+            }
 
-            // Keep rotation/scale tracks for everything else (dancing limbs, wings, etc.)
+            // ALLOW: Dummy018 (bathtub path) — keep all tracks
+            if (nodeName === 'Dummy018') return true;
+
+            // ALLOW: CAT_ / FlowCAT / CATWORM — only block TRANSLATION (orbit path)
+            // Keep rotation (limb dancing) and scale
+            if (nodeName.startsWith('CAT_') || nodeName.startsWith('FlowCAT') || nodeName.startsWith('CATWORM')) {
+              return !isTranslation; // keep rotation/scale, block position
+            }
+
+            // BLOCK: Smoke particles translation
+            if (nodeName.includes('Smoke') && isTranslation) return false;
+
+            // ALLOW: all rotation/scale tracks for everything else
             if (!isTranslation) return true;
 
-            // For translation tracks, whitelist only specific nodes:
-            // 1. Bathtub + parent Dummy018 (boat floats down river)
-            if (nodeName === 'Dummy018' || nodeName.toLowerCase().includes('bathtub') ||
-                nodeName.includes('Object005')) return true;
-
-            // 2. CATRig skeleton bones (actual limb movement for dancing)
+            // For translation tracks, whitelist specific nodes:
+            if (nodeName.toLowerCase().includes('bathtub') || nodeName.includes('Object005')) return true;
             if (nodeName.startsWith('CATRig')) return true;
-
-            // 3. Pastisympaty body parts
             if (nodeName.startsWith('Pastisympaty_')) return true;
-
-            // 4. PastyFly wings
             if (nodeName.includes('PastyFly_wing')) return true;
 
-            // BLOCK everything else
+            // Block all other translations
             return false;
           });
 
@@ -2258,16 +2262,24 @@
           const charMixer = new THREE.AnimationMixer(charScene);
           sceneMixers.push(charMixer);
           gltf.animations.forEach((clip, i) => {
-            // Same filter as landscape: block Dummy orbit rotations + translations
+            // Same filter as landscape
             const filteredTracks = clip.tracks.filter(track => {
               const nodeName = track.name.split('.')[0];
               const isTranslation = track.name.endsWith('.position');
-              // Block orbit/root Dummy nodes entirely (rotation + translation)
+              const isRotation = track.name.endsWith('.quaternion');
+
+              // Block orbit Dummy nodes (except Dummy018)
               if (nodeName.startsWith('Dummy') && !nodeName.startsWith('Dummy018')) return false;
-              if (nodeName.startsWith('CAT_') || nodeName.startsWith('FlowCAT') || nodeName.startsWith('CATWORM')) return false;
-              if (nodeName.includes('Smoke')) return false;
+              if (nodeName === 'Dummy018') return true;
+
+              // CAT_/FlowCAT/CATWORM: keep rotation (dancing), block translation (orbiting)
+              if (nodeName.startsWith('CAT_') || nodeName.startsWith('FlowCAT') || nodeName.startsWith('CATWORM')) {
+                return !isTranslation;
+              }
+
+              if (nodeName.includes('Smoke') && isTranslation) return false;
               if (!isTranslation) return true;
-              if (nodeName === 'Dummy018' || nodeName.toLowerCase().includes('bathtub')) return true;
+              if (nodeName.toLowerCase().includes('bathtub') || nodeName.includes('Object005')) return true;
               if (nodeName.startsWith('CATRig')) return true;
               if (nodeName.startsWith('Pastisympaty_')) return true;
               if (nodeName.includes('PastyFly_wing')) return true;
