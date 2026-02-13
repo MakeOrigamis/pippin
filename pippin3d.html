@@ -3007,8 +3007,7 @@
     function renderPuzzle() {
       if (!currentPuzzle) { puzzleEl.style.display = 'none'; return; }
       puzzleEl.style.display = 'block';
-      const isEN = langMode === 'en';
-      puzzlePromptEl.textContent = isEN ? currentPuzzle.prompt_en : currentPuzzle.prompt_jp;
+      puzzlePromptEl.innerHTML = currentPuzzle.prompt_en + '<br><span style="font-size:0.55rem;opacity:0.45">' + currentPuzzle.prompt_jp + '</span>';
       const pct = Math.min(100, (currentPuzzle.current_count / currentPuzzle.target_count) * 100);
       puzzleBarEl.style.width = pct + '%';
       puzzleCountEl.textContent = `${currentPuzzle.current_count}/${currentPuzzle.target_count}`;
