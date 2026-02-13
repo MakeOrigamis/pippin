@@ -518,9 +518,47 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
           }
         }
 
-        // ---- If rejected, don't award anything ----
+        // ---- SAVE DRAWING IMMEDIATELY (before approval check) ----
+        // Drawings ALWAYS go to gallery + backup, regardless of AI approval.
+        // Approval only affects happiness reward, not gallery presence.
+        if (task_type === 'draw' && image_data) {
+          console.log(`DRAWING SAVE: wallet=${wallet}, prompt="${task_prompt}", image_data_len=${image_data.length}`);
+          try {
+            const { data: drawData, error: drawErr } = await supabase.from('drawings').insert({
+              participant_id: participant.id,
+              image_data,
+              prompt: task_prompt || '',
+            }).select().single();
+            if (drawErr) {
+              console.error('DRAWING DB SAVE FAILED:', drawErr.message, drawErr.details, drawErr.hint);
+            } else {
+              console.log('DRAWING SAVED TO DB OK, id:', drawData?.id);
+            }
+          } catch (drawEx) {
+            console.error('DRAWING DB EXCEPTION:', drawEx.message);
+          }
+
+          // LOCAL BACKUP: save drawing as PNG file + metadata
+          try {
+            const backupDir = path.join(__dirname, 'drawings_backup');
+            if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            const safePrompt = (task_prompt || 'free').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+            const filename = `${ts}_${safePrompt}`;
+            const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
+            fs.writeFileSync(path.join(backupDir, `${filename}.png`), Buffer.from(base64Data, 'base64'));
+            fs.writeFileSync(path.join(backupDir, `${filename}.json`), JSON.stringify({
+              wallet, prompt: task_prompt, artist: participant.display_name,
+              created_at: new Date().toISOString(), life: lifeNum,
+            }));
+            console.log('DRAWING BACKUP SAVED:', filename);
+          } catch (backupErr) {
+            console.warn('Drawing backup error (non-fatal):', backupErr.message);
+          }
+        }
+
+        // ---- If rejected, don't award happiness ----
         if (!approved) {
-          // Still save task record as not completed
           await supabase.from('tasks').insert({
             participant_id: participant.id,
             task_type,
@@ -529,7 +567,7 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
             completed: false,
             happiness_reward: 0,
           });
-          // (errors silently ignored — rejected tasks are best-effort saves)
+          console.log(`Task REJECTED: ${wallet} "${task_type}" (drawing still saved to gallery)`);
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
@@ -543,14 +581,11 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
         }
 
         // ---- APPROVED: award rewards ----
-        // Happiness fills slower in later lives:
-        // Life 1: +3/+2, Life 2: +2/+1.5, Life 3: +1.5/+1, Life 4+: +1/+0.5
-        // This means Life 1 needs ~40 tasks, Life 3 needs ~80, Life 5+ needs ~150+
         const baseReward = task_type === 'draw' ? 3 : 2;
         const lifeScale = lifeNum <= 1 ? 1 : lifeNum <= 2 ? 0.7 : lifeNum <= 3 ? 0.45 : lifeNum <= 4 ? 0.3 : lifeNum <= 5 ? 0.2 : 0.12;
         const happinessReward = Math.max(0.2, Math.round(baseReward * lifeScale * 10) / 10);
 
-        // Create task record (truncate response to avoid DB overflow — image_data is stored separately)
+        // Create task record
         const { data: task, error: taskError } = await supabase
           .from('tasks')
           .insert({
@@ -565,37 +600,6 @@ Examples of approval: any genuine attempt that relates to the prompt.`;
           .select()
           .single();
         if (taskError) console.warn('Task insert error:', taskError.message);
-
-        // Save drawing if it's a draw task (save even if task insert failed)
-        if (task_type === 'draw' && image_data) {
-          const drawInsert = {
-            participant_id: participant.id,
-            image_data,
-            prompt: task_prompt || '',
-          };
-          if (task) drawInsert.task_id = task.id;
-          const { error: drawErr } = await supabase.from('drawings').insert(drawInsert);
-          if (drawErr) console.warn('Drawing save error:', drawErr.message);
-
-          // LOCAL BACKUP: save drawing as PNG file + metadata
-          try {
-            const backupDir = path.join(__dirname, 'drawings_backup');
-            if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-            const ts = new Date().toISOString().replace(/[:.]/g, '-');
-            const safePrompt = (task_prompt || 'free').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
-            const filename = `${ts}_${safePrompt}`;
-            // Save the PNG
-            const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
-            fs.writeFileSync(path.join(backupDir, `${filename}.png`), Buffer.from(base64Data, 'base64'));
-            // Save metadata JSON
-            fs.writeFileSync(path.join(backupDir, `${filename}.json`), JSON.stringify({
-              wallet, prompt: task_prompt, artist: participant.display_name,
-              created_at: new Date().toISOString(), life: lifeNum,
-            }));
-          } catch (backupErr) {
-            console.warn('Drawing backup error (non-fatal):', backupErr.message);
-          }
-        }
 
         // Add raffle entry
         await supabase.from('raffle_entries').insert({
@@ -1047,11 +1051,13 @@ ONLY output the JSON. No markdown, no code blocks.`;
       return;
     }
     try {
-      const { data } = await supabase
+      const { data, error: fetchErr } = await supabase
         .from('drawings')
         .select('id, prompt, image_data, created_at, participant_id, likes')
         .order('created_at', { ascending: false })
         .limit(50);
+
+      console.log(`GALLERY: fetched ${data?.length || 0} drawings from DB${fetchErr ? ' ERROR: ' + fetchErr.message : ''}`);
 
       // Enrich with artist names
       const enriched = await Promise.all((data || []).map(async (d) => {
@@ -1074,6 +1080,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(enriched));
     } catch (e) {
+      console.error('GALLERY ERROR:', e.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
