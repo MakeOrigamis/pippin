@@ -3126,7 +3126,7 @@
       }
     }
 
-    // Claim a drawing slot — opens a mini canvas
+    // Claim a drawing slot — opens a mini canvas with full drawing tools
     window.claimPuzzleSlot = function(slot) {
       if (!currentPuzzle || !currentWallet) return;
       const meta = getPuzzleMeta();
@@ -3142,38 +3142,129 @@
       const wrap = document.createElement('div');
       wrap.className = 'puzzle-mini-canvas-wrap';
       const displaySize = Math.min(600, window.innerWidth - 60);
-      const resolution = 800; // internal drawing resolution
+      const resolution = 800;
+
+      const colors = [
+        '#000','#333333','#666666','#999999','#FFFFFF',
+        '#E84040','#FF6B35','#F4D06F','#3A7D32','#2ECDA7',
+        '#4A90D9','#1A3A8A','#8B5CF6','#C5B8E8','#E8A0BF',
+        '#A0522D','#FFD4B8'
+      ];
+      const colorBtns = colors.map((c, i) =>
+        `<button class="pm-color-btn${i === 0 ? ' active' : ''}" style="background:${c};width:22px;height:22px;border-radius:50%;border:2px solid ${i === 0 ? '#E8D5C4' : 'rgba(232,213,196,0.2)'};cursor:pointer;margin:1px;" data-color="${c}"></button>`
+      ).join('') + `<button class="pm-color-btn" data-color="eraser" title="Eraser" style="width:22px;height:22px;border-radius:50%;border:2px solid rgba(232,213,196,0.2);cursor:pointer;margin:1px;background:#fff;font-size:10px;line-height:18px;">⌫</button>`;
+
+      const sizes = [{v:2,d:3,t:'Fine'},{v:5,d:6,t:'Small'},{v:10,d:10,t:'Medium'},{v:18,d:14,t:'Large'},{v:30,d:18,t:'Thicc'}];
+      const sizeBtns = sizes.map((s, i) =>
+        `<button class="pm-size-btn${i === 0 ? ' active' : ''}" data-size="${s.v}" title="${s.t}" style="width:30px;height:30px;border-radius:6px;border:1px solid ${i === 0 ? '#e8a0bf' : 'rgba(232,213,196,0.15)'};background:${i === 0 ? 'rgba(232,160,191,0.2)' : 'rgba(232,213,196,0.08)'};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin:1px;"><div style="width:${s.d}px;height:${s.d}px;border-radius:50%;background:#E8D5C4;"></div></button>`
+      ).join('');
+
+      const brushTypes = [
+        {k:'round',label:'● Round'},{k:'square',label:'■ Square'},{k:'spray',label:'◌ Spray'}
+      ];
+      const brushBtns = brushTypes.map((b, i) =>
+        `<button class="pm-brush-btn${i === 0 ? ' active' : ''}" data-brush="${b.k}" style="font-size:0.65rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid ${i === 0 ? '#e8a0bf' : 'rgba(232,213,196,0.15)'};background:${i === 0 ? 'rgba(232,160,191,0.2)' : 'rgba(232,213,196,0.08)'};color:${i === 0 ? '#e8a0bf' : '#E8D5C4'};cursor:pointer;margin:1px;font-family:'Baloo 2',cursive;">${b.label}</button>`
+      ).join('');
+
       wrap.innerHTML = `
         <div class="puzzle-mini-title">🎨 Draw: ${label}${subject ? ' — ' + subject : ''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-bottom:6px;">${colorBtns}</div>
+        <div style="display:flex;gap:4px;justify-content:center;align-items:center;margin-bottom:6px;">
+          ${sizeBtns}
+          <span style="color:rgba(232,213,196,0.3);margin:0 4px;">|</span>
+          ${brushBtns}
+        </div>
         <canvas id="puzzleMiniCanvas" width="${resolution}" height="${resolution}" style="width:${displaySize}px;height:${displaySize}px;background:#fff;"></canvas>
         <div class="puzzle-mini-btns">
-          <button style="background:rgba(232,90,90,0.2);border:1px solid rgba(232,90,90,0.3);color:#e85a5a;" onclick="this.closest('.puzzle-mini-canvas-wrap').remove();document.querySelector('.puzzle-overlay-bg').remove();">Cancel</button>
+          <button style="background:rgba(232,213,196,0.1);border:1px solid rgba(232,213,196,0.2);color:#E8D5C4;" id="pmUndoBtn">↩ Undo</button>
+          <button style="background:rgba(232,90,90,0.2);border:1px solid rgba(232,90,90,0.3);color:#e85a5a;" onclick="this.closest('.puzzle-mini-canvas-wrap').remove();document.querySelector('.puzzle-overlay-bg')?.remove();">Cancel</button>
           <button style="background:rgba(139,195,74,0.2);border:1px solid rgba(139,195,74,0.3);color:#8bc34a;" onclick="submitPuzzleDrawing(${slot})">✅ Submit!</button>
         </div>
       `;
       document.body.appendChild(wrap);
 
-      // Set up drawing on mini canvas
+      // Set up drawing on mini canvas with full tools
       const mc = document.getElementById('puzzleMiniCanvas');
       const mctx = mc.getContext('2d');
       mctx.fillStyle = '#ffffff';
       mctx.fillRect(0, 0, mc.width, mc.height);
-      mctx.strokeStyle = '#333';
-      mctx.lineWidth = 3;
-      mctx.lineCap = 'round';
-      let drawing = false;
+
+      let pmColor = '#000', pmSize = 2, pmBrush = 'round', pmEraser = false, pmDrawing = false;
+      let pmUndo = []; // undo history
+      pmUndo.push(mctx.getImageData(0, 0, mc.width, mc.height));
+
+      // Color buttons
+      wrap.querySelectorAll('.pm-color-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          wrap.querySelectorAll('.pm-color-btn').forEach(b => { b.style.borderColor = 'rgba(232,213,196,0.2)'; b.classList.remove('active'); });
+          btn.style.borderColor = '#E8D5C4'; btn.classList.add('active');
+          if (btn.dataset.color === 'eraser') { pmEraser = true; } else { pmEraser = false; pmColor = btn.dataset.color; }
+        });
+      });
+      // Size buttons
+      wrap.querySelectorAll('.pm-size-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          wrap.querySelectorAll('.pm-size-btn').forEach(b => { b.style.borderColor = 'rgba(232,213,196,0.15)'; b.style.background = 'rgba(232,213,196,0.08)'; });
+          btn.style.borderColor = '#e8a0bf'; btn.style.background = 'rgba(232,160,191,0.2)';
+          pmSize = parseInt(btn.dataset.size);
+        });
+      });
+      // Brush type buttons
+      wrap.querySelectorAll('.pm-brush-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          wrap.querySelectorAll('.pm-brush-btn').forEach(b => { b.style.borderColor = 'rgba(232,213,196,0.15)'; b.style.background = 'rgba(232,213,196,0.08)'; b.style.color = '#E8D5C4'; });
+          btn.style.borderColor = '#e8a0bf'; btn.style.background = 'rgba(232,160,191,0.2)'; btn.style.color = '#e8a0bf';
+          pmBrush = btn.dataset.brush;
+        });
+      });
+      // Undo button
+      document.getElementById('pmUndoBtn').addEventListener('click', () => {
+        if (pmUndo.length > 1) { pmUndo.pop(); mctx.putImageData(pmUndo[pmUndo.length - 1], 0, 0); }
+      });
 
       function getPos(e) {
         const r = mc.getBoundingClientRect();
         const t = e.touches ? e.touches[0] : e;
         return { x: (t.clientX - r.left) * (mc.width / r.width), y: (t.clientY - r.top) * (mc.height / r.height) };
       }
-      mc.addEventListener('mousedown', (e) => { drawing = true; const p = getPos(e); mctx.beginPath(); mctx.moveTo(p.x, p.y); });
-      mc.addEventListener('mousemove', (e) => { if (!drawing) return; const p = getPos(e); mctx.lineTo(p.x, p.y); mctx.stroke(); });
-      mc.addEventListener('mouseup', () => { drawing = false; });
-      mc.addEventListener('touchstart', (e) => { e.preventDefault(); drawing = true; const p = getPos(e); mctx.beginPath(); mctx.moveTo(p.x, p.y); }, { passive: false });
-      mc.addEventListener('touchmove', (e) => { e.preventDefault(); if (!drawing) return; const p = getPos(e); mctx.lineTo(p.x, p.y); mctx.stroke(); }, { passive: false });
-      mc.addEventListener('touchend', () => { drawing = false; });
+      function getPmStyle() {
+        const color = pmEraser ? '#FFFFFF' : pmColor;
+        const width = pmEraser ? Math.max(pmSize * 3, 18) : pmSize;
+        const cap = (pmBrush === 'square' && !pmEraser) ? 'square' : 'round';
+        return { color, width, cap, brush: pmEraser ? 'round' : pmBrush };
+      }
+      function pmStroke(p) {
+        const s = getPmStyle();
+        if (s.brush === 'spray') {
+          const density = Math.floor(s.width * 2);
+          const radius = s.width * 1.5;
+          mctx.fillStyle = s.color;
+          for (let i = 0; i < density; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.random() * radius;
+            mctx.fillRect(p.x + Math.cos(angle) * r, p.y + Math.sin(angle) * r, 1, 1);
+          }
+        } else {
+          mctx.strokeStyle = s.color;
+          mctx.lineWidth = s.width;
+          mctx.lineCap = s.cap;
+          mctx.lineJoin = s.cap;
+          mctx.lineTo(p.x, p.y);
+          mctx.stroke();
+        }
+      }
+
+      function startDraw(e) { e.preventDefault(); pmDrawing = true; const p = getPos(e); mctx.beginPath(); mctx.moveTo(p.x, p.y); pmStroke(p); }
+      function moveDraw(e) { e.preventDefault(); if (!pmDrawing) return; pmStroke(getPos(e)); }
+      function endDraw() { if (pmDrawing) { pmDrawing = false; if (pmUndo.length >= 30) pmUndo.shift(); pmUndo.push(mctx.getImageData(0, 0, mc.width, mc.height)); } }
+
+      mc.addEventListener('mousedown', startDraw);
+      mc.addEventListener('mousemove', moveDraw);
+      mc.addEventListener('mouseup', endDraw);
+      mc.addEventListener('mouseleave', endDraw);
+      mc.addEventListener('touchstart', startDraw, { passive: false });
+      mc.addEventListener('touchmove', moveDraw, { passive: false });
+      mc.addEventListener('touchend', endDraw);
     };
 
     // Submit the drawing from the mini canvas
