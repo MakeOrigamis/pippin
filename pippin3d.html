@@ -1565,6 +1565,7 @@
       </div>
     </div>
     <div class="canvas-actions">
+      <button class="task-btn secondary" id="canvasUndo" title="Undo last stroke">↩ 戻す (undo)</button>
       <button class="task-btn secondary" id="canvasClear">消す (clear)</button>
       <button class="task-btn primary" id="canvasSubmit">&#10004; 提出する (submit)</button>
       <button class="task-btn secondary" id="canvasClose">戻る (back)</button>
@@ -3235,7 +3236,8 @@
       canvasOverlay.classList.add('show');
       document.getElementById('canvasPrompt').innerHTML =
         currentTask.jp + '<span class="canvas-prompt-en">' + currentTask.en + '</span>';
-      // Clear canvas
+      // Clear canvas and reset undo history
+      undoHistory = [];
       drawCtx.fillStyle = '#fff';
       drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
     }
@@ -3313,17 +3315,35 @@
       }
     }
 
-    drawCanvas.addEventListener('mousedown', (e) => { isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
+    // Undo history — save canvas snapshot before each stroke
+    let undoHistory = [];
+    const MAX_UNDO = 30;
+
+    function saveUndoState() {
+      undoHistory.push(drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height));
+      if (undoHistory.length > MAX_UNDO) undoHistory.shift();
+    }
+
+    function undoStroke() {
+      if (undoHistory.length === 0) return;
+      const prev = undoHistory.pop();
+      drawCtx.putImageData(prev, 0, 0);
+    }
+
+    drawCanvas.addEventListener('mousedown', (e) => { saveUndoState(); isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
     drawCanvas.addEventListener('mousemove', (e) => { if (!isDrawing) return; drawStroke(getDrawPos(e)); });
     drawCanvas.addEventListener('mouseup', () => { isDrawing = false; });
     drawCanvas.addEventListener('mouseleave', () => { isDrawing = false; });
 
     // Touch support
-    drawCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
+    drawCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); saveUndoState(); isDrawing = true; const p = getDrawPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); });
     drawCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDrawing) return; drawStroke(getDrawPos(e)); });
     drawCanvas.addEventListener('touchend', () => { isDrawing = false; });
 
+    document.getElementById('canvasUndo').addEventListener('click', undoStroke);
+
     document.getElementById('canvasClear').addEventListener('click', () => {
+      saveUndoState(); // save before clearing so you can undo a clear
       drawCtx.fillStyle = '#fff';
       drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
     });
