@@ -1,2 +1,5 @@
 node_modules/
 .env
+models/lysergic_river.glb
+models/lysergic_v2.glb
+music/bgm.mp3
