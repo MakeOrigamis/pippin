@@ -336,12 +336,36 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
         return;
       }
       try {
-        const { data, error } = await supabase
+        // Check if participant already exists
+        const { data: existing } = await supabase
           .from('participants')
-          .upsert({ wallet_address: wallet, display_name: name || 'anonymous' }, { onConflict: 'wallet_address' })
-          .select()
+          .select('*')
+          .eq('wallet_address', wallet)
           .single();
-        if (error) throw error;
+
+        let data;
+        if (existing) {
+          // If re-joining and a custom name is provided (not 'explorer' or 'anonymous'), update name
+          if (name && name !== 'explorer' && name !== 'anonymous') {
+            const { data: updated } = await supabase
+              .from('participants')
+              .update({ display_name: name })
+              .eq('id', existing.id)
+              .select()
+              .single();
+            data = updated || existing;
+          } else {
+            data = existing;
+          }
+        } else {
+          const { data: created, error } = await supabase
+            .from('participants')
+            .insert({ wallet_address: wallet, display_name: name || 'explorer' })
+            .select()
+            .single();
+          if (error) throw error;
+          data = created;
+        }
         console.log(`Joined: ${wallet} as "${data.display_name}"`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(data));
@@ -518,11 +542,19 @@ The English must sound like a cute Japanese character speaking English - mix in 
 
 ONLY output the JSON. No markdown, no code blocks.`;
 
+      // For drawing tasks, include the image for AI vision reaction
+      const userContent = (task_type === 'draw' && task_response && task_response.startsWith && task_response.startsWith('data:image'))
+        ? [
+            { type: 'text', text: 'The visitor completed the drawing task. Look at their drawing and react to what you see! Be specific about what you notice in the image.' },
+            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: task_response.replace(/^data:image\/\w+;base64,/, '') } }
+          ]
+        : `The visitor completed the task. React to it!`;
+
       const postData = JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 200,
         system: reactPrompt,
-        messages: [{ role: 'user', content: `The visitor completed the task. React to it!` }],
+        messages: [{ role: 'user', content: userContent }],
       });
 
       const options = {
@@ -808,7 +840,7 @@ ONLY output the JSON. No markdown, no code blocks.`;
     try {
       const { data } = await supabase
         .from('drawings')
-        .select('id, prompt, image_data, created_at, participant_id')
+        .select('id, prompt, image_data, created_at, participant_id, likes')
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -824,13 +856,78 @@ ONLY output the JSON. No markdown, no code blocks.`;
           prompt: d.prompt,
           image_data: d.image_data,
           created_at: d.created_at,
+          likes: d.likes || 0,
           artist: p?.display_name || 'anonymous',
-          wallet: p?.wallet_address ? p.wallet_address.substring(0, 6) + '...' : '',
+          wallet: p?.wallet_address || '',
         };
       }));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(enriched));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ======================== ACTIVITY FEED ========================
+  if (req.url === '/api/activity' && req.method === 'GET') {
+    if (!supabase) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify([]));
+      return;
+    }
+    try {
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('task_type, task_prompt, participant_id, completed_at')
+        .eq('completed', true)
+        .order('completed_at', { ascending: false })
+        .limit(20);
+
+      const feed = await Promise.all((tasks || []).map(async (t) => {
+        const { data: p } = await supabase
+          .from('participants')
+          .select('display_name')
+          .eq('id', t.participant_id)
+          .single();
+        return {
+          name: p?.display_name || 'explorer',
+          type: t.task_type,
+          prompt: (t.task_prompt || '').substring(0, 40),
+          time: t.completed_at,
+        };
+      }));
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(feed));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ======================== LIKE DRAWING ========================
+  if (req.url.startsWith('/api/drawings/') && req.url.endsWith('/like') && req.method === 'POST') {
+    const drawingId = req.url.split('/')[3];
+    if (!supabase || !drawingId) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ likes: 0 }));
+      return;
+    }
+    try {
+      // Increment likes (using RPC or direct update)
+      const { data: drawing } = await supabase
+        .from('drawings')
+        .select('likes')
+        .eq('id', drawingId)
+        .single();
+      const newLikes = (drawing?.likes || 0) + 1;
+      await supabase.from('drawings').update({ likes: newLikes }).eq('id', drawingId);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ likes: newLikes }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));

@@ -453,6 +453,16 @@
     }
     .gallery-share:hover { background: rgba(29, 155, 240, 0.15); border-color: #1d9bf0; }
     .gallery-share svg { width: 14px; height: 14px; fill: currentColor; }
+    .gallery-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
+    .gallery-like {
+      display: flex; align-items: center; gap: 0.3rem;
+      padding: 0.25rem 0.5rem; border-radius: 6px;
+      background: rgba(232, 160, 191, 0.1); border: 1px solid rgba(232, 160, 191, 0.2);
+      color: #e8a0bf; font-size: 0.65rem; cursor: pointer; transition: all 0.2s;
+    }
+    .gallery-like:hover { background: rgba(232, 160, 191, 0.25); border-color: #e8a0bf; }
+    .gallery-like.liked { background: rgba(232, 160, 191, 0.3); border-color: #e8a0bf; color: #ff6b9d; }
+    .gallery-like-count { font-weight: bold; }
     .gallery-empty {
       text-align: center; color: #888; padding: 3rem; font-size: 1rem;
       grid-column: 1 / -1;
@@ -681,6 +691,33 @@
       font-size: 0.7rem;
       color: var(--green-light);
     }
+
+    /* ======================== ACTIVITY TICKER ======================== */
+    .activity-ticker {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 28px;
+      background: rgba(26, 20, 16, 0.85);
+      border-top: 1px solid rgba(232, 213, 196, 0.1);
+      overflow: hidden;
+      z-index: 900;
+      display: flex; align-items: center;
+    }
+    .ticker-track {
+      display: flex; gap: 3rem;
+      white-space: nowrap;
+      animation: tickerScroll 40s linear infinite;
+    }
+    @keyframes tickerScroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-item {
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.65rem; color: rgba(232, 213, 196, 0.5);
+    }
+    .ticker-item .ticker-name { color: #e8a0bf; }
+    .ticker-item .ticker-type { color: #c4956a; }
 
     /* ======================== DRAW CANVAS OVERLAY ======================== */
     .canvas-overlay {
@@ -1483,6 +1520,7 @@
   <!-- Wallet Panel -->
   <div class="wallet-panel" id="walletPanel">
     <div class="wallet-label">&#128092; ウォレットを入力して参加</div>
+    <input type="text" class="wallet-input" id="nameInput" placeholder="Your display name..." maxlength="20" style="margin-bottom:0.3rem;font-size:0.75rem;" />
     <input type="text" class="wallet-input" id="walletInput" placeholder="SOL wallet address..." />
     <button class="task-btn primary" id="walletJoin" style="width:100%;">参加する (join)</button>
     <div class="wallet-status" id="walletStatus"></div>
@@ -1531,6 +1569,11 @@
       <button class="task-btn primary" id="canvasSubmit">&#10004; 提出する (submit)</button>
       <button class="task-btn secondary" id="canvasClose">戻る (back)</button>
     </div>
+  </div>
+
+  <!-- Activity Ticker -->
+  <div class="activity-ticker" id="activityTicker">
+    <div class="ticker-track" id="tickerTrack"></div>
   </div>
 
   <!-- Chat -->
@@ -2413,16 +2456,22 @@
             `Pippin asked me to "${prompt}" and I delivered ne! 🎨🦄\n\nPippin's Groundhog Day — an AI unicorn trapped in a time loop desu\n\nCA: 4srVZphD4XnXmV2iGs2diQs644Po7njkBBU4wdZspump\n\npippingroundhog.com`
           );
           const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
+          const liked = localStorage.getItem('liked_' + d.id);
           card.innerHTML = `
             <img src="${d.image_data}" alt="${prompt}" loading="lazy" />
             <div class="gallery-card-info">
               <div class="gallery-prompt">${prompt}</div>
               <div class="gallery-artist">by ${d.artist} ${d.wallet ? '(' + d.wallet + ')' : ''}</div>
               <div class="gallery-time">${timeAgo}</div>
-              <a class="gallery-share" href="${tweetUrl}" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                Share on X
-              </a>
+              <div class="gallery-actions">
+                <button class="gallery-like ${liked ? 'liked' : ''}" data-id="${d.id}" onclick="likeDrawing(this, '${d.id}')">
+                  ♥ <span class="gallery-like-count">${d.likes || 0}</span>
+                </button>
+                <a class="gallery-share" href="${tweetUrl}" target="_blank" rel="noopener" style="margin-top:0;">
+                  <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  Share
+                </a>
+              </div>
             </div>
           `;
           grid.appendChild(card);
@@ -3005,28 +3054,36 @@
       joinWithWallet(myWallet);
     }
 
+    const nameInput = document.getElementById('nameInput');
+    const savedName = localStorage.getItem('pippin_name') || '';
+    if (savedName) nameInput.value = savedName;
+
     walletJoin.addEventListener('click', () => {
       const w = walletInput.value.trim();
       if (w.length < 20) { walletStatus.textContent = 'アドレスが短すぎます'; return; }
-      joinWithWallet(w);
+      const n = nameInput.value.trim() || 'explorer';
+      joinWithWallet(w, n);
     });
 
-    async function joinWithWallet(wallet) {
+    async function joinWithWallet(wallet, displayName) {
+      const name = displayName || localStorage.getItem('pippin_name') || 'explorer';
       try {
         const res = await fetch('/api/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wallet, name: 'explorer' }),
+          body: JSON.stringify({ wallet, name }),
         });
         const data = await res.json();
         if (data.id) {
           myWallet = wallet;
           myParticipantId = data.id;
           localStorage.setItem('pippin_wallet', wallet);
-          walletStatus.textContent = '参加済み ✓ (' + wallet.slice(0, 6) + '...)';
+          localStorage.setItem('pippin_name', data.display_name || name);
+          walletStatus.textContent = '参加済み ✓ ' + (data.display_name || name);
           walletPanel.classList.add('joined');
           walletJoin.style.display = 'none';
           walletInput.disabled = true;
+          nameInput.disabled = true;
           // Show task panel
           document.getElementById('taskPanel').classList.add('show');
           loadNewTask();
@@ -3110,6 +3167,7 @@
           updateHappiness(data.happiness);
 
           // Ask Pippin AI to react to what the user actually submitted
+          // For drawings, send the image so Pippin can "see" it via AI vision
           try {
             const reactRes = await fetch('/api/task/react', {
               method: 'POST',
@@ -3117,7 +3175,7 @@
               body: JSON.stringify({
                 task_type: currentTask.type,
                 task_prompt: currentTask.jp,
-                task_response: response || '(completed)',
+                task_response: (currentTask.type === 'draw' && imageData) ? imageData : (response || '(completed)'),
                 happiness: currentHappiness,
               }),
             });
@@ -3378,6 +3436,205 @@
       loadNewTask();
       startTaskAsking();
     }
+
+    // ======================== SOUND EFFECTS ========================
+    const sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSfx(type) {
+      try {
+        const osc = sfxCtx.createOscillator();
+        const gain = sfxCtx.createGain();
+        osc.connect(gain);
+        gain.connect(sfxCtx.destination);
+        gain.gain.value = 0.12;
+        const t = sfxCtx.currentTime;
+        if (type === 'complete') {
+          // Happy task complete chime
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523, t);
+          osc.frequency.setValueAtTime(659, t + 0.1);
+          osc.frequency.setValueAtTime(784, t + 0.2);
+          gain.gain.setValueAtTime(0.15, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          osc.start(t); osc.stop(t + 0.5);
+        } else if (type === 'like') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, t);
+          osc.frequency.setValueAtTime(1100, t + 0.08);
+          gain.gain.setValueAtTime(0.1, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+          osc.start(t); osc.stop(t + 0.2);
+        } else if (type === 'sad') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(330, t);
+          osc.frequency.setValueAtTime(262, t + 0.3);
+          gain.gain.setValueAtTime(0.08, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+          osc.start(t); osc.stop(t + 0.6);
+        } else if (type === 'join') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(440, t);
+          osc.frequency.setValueAtTime(554, t + 0.1);
+          osc.frequency.setValueAtTime(659, t + 0.2);
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+          osc.start(t); osc.stop(t + 0.4);
+        }
+      } catch(_) {}
+    }
+
+    // Hook sfx into existing events
+    const origCompleteTask = completeTask;
+
+    // ======================== ACTIVITY TICKER ========================
+    const tickerTrack = document.getElementById('tickerTrack');
+    const typeEmojis = { draw: '🎨', haiku: '✍️', compliment: '💕', story: '📖', dance: '💃', explore: '🗺️', trivia: '🧠', joke: '😂', wish: '⭐', opinion: '💬' };
+
+    async function loadActivityFeed() {
+      try {
+        const res = await fetch('/api/activity');
+        const feed = await res.json();
+        if (!feed || feed.length === 0) {
+          tickerTrack.innerHTML = '<span class="ticker-item">Waiting for explorers to do tasks ne... be the first desu! 🦄</span>';
+          return;
+        }
+        // Create items, duplicate for seamless scroll
+        const items = feed.map(f => {
+          const emoji = typeEmojis[f.type] || '✨';
+          return `<span class="ticker-item">${emoji} <span class="ticker-name">${f.name}</span> did <span class="ticker-type">${f.type}</span></span>`;
+        }).join('');
+        tickerTrack.innerHTML = items + items; // duplicate for infinite scroll
+      } catch(_) {}
+    }
+
+    // Load feed after entering, refresh every 30s
+    document.getElementById('introEnter').addEventListener('click', () => {
+      setTimeout(loadActivityFeed, 3000);
+    });
+    setInterval(loadActivityFeed, 30000);
+
+    // ======================== LIKE DRAWING (GLOBAL FUNCTION) ========================
+    window.likeDrawing = async function(btn, drawingId) {
+      if (localStorage.getItem('liked_' + drawingId)) return; // already liked
+      try {
+        const res = await fetch('/api/drawings/' + drawingId + '/like', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        const data = await res.json();
+        const countEl = btn.querySelector('.gallery-like-count');
+        if (countEl) countEl.textContent = data.likes || 0;
+        btn.classList.add('liked');
+        localStorage.setItem('liked_' + drawingId, '1');
+        playSfx('like');
+      } catch(_) {}
+    };
+
+    // ======================== PIPPIN PARTICLE EFFECTS (MOOD-BASED) ========================
+    let pippinParticles = null;
+    let particleGeometry = null;
+    let particleMaterial = null;
+
+    function createPippinParticles() {
+      if (pippinParticles) { scene.remove(pippinParticles); }
+      const count = 60;
+      particleGeometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 3;
+        positions[i * 3 + 1] = Math.random() * 3;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
+        colors[i * 3] = 1; colors[i * 3 + 1] = 1; colors[i * 3 + 2] = 1;
+      }
+      particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      particleMaterial = new THREE.PointsMaterial({
+        size: 0.08, vertexColors: true, transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      pippinParticles = new THREE.Points(particleGeometry, particleMaterial);
+      scene.add(pippinParticles);
+    }
+
+    function updatePippinParticles(happiness) {
+      if (!pippinParticles || !particleGeometry) return;
+      const positions = particleGeometry.attributes.position.array;
+      const colors = particleGeometry.attributes.color.array;
+      const count = positions.length / 3;
+
+      for (let i = 0; i < count; i++) {
+        // Move particles upward, reset when too high
+        positions[i * 3 + 1] += 0.02 + Math.random() * 0.01;
+        if (positions[i * 3 + 1] > 4) {
+          positions[i * 3 + 1] = 0;
+          positions[i * 3] = (Math.random() - 0.5) * 3;
+          positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
+        }
+        // Horizontal drift
+        positions[i * 3] += (Math.random() - 0.5) * 0.02;
+        positions[i * 3 + 2] += (Math.random() - 0.5) * 0.02;
+
+        if (happiness < 20) {
+          // Sad: grey/blue rain falling DOWN
+          positions[i * 3 + 1] -= 0.06; // override upward, move down
+          if (positions[i * 3 + 1] < -1) positions[i * 3 + 1] = 4;
+          colors[i * 3] = 0.3; colors[i * 3 + 1] = 0.3; colors[i * 3 + 2] = 0.5;
+          particleMaterial.size = 0.04;
+          particleMaterial.opacity = 0.5;
+        } else if (happiness < 50) {
+          // Okay: subtle warm sparkles
+          colors[i * 3] = 0.9; colors[i * 3 + 1] = 0.8; colors[i * 3 + 2] = 0.5;
+          particleMaterial.size = 0.06;
+          particleMaterial.opacity = 0.4;
+        } else if (happiness < 80) {
+          // Happy: pink/gold sparkles
+          const t = (i / count);
+          colors[i * 3] = 0.9 + t * 0.1; colors[i * 3 + 1] = 0.5 + t * 0.3; colors[i * 3 + 2] = 0.7;
+          particleMaterial.size = 0.08;
+          particleMaterial.opacity = 0.6;
+        } else {
+          // Ecstatic: rainbow trail!
+          const hue = ((i / count) + Date.now() * 0.0003) % 1;
+          const c = new THREE.Color().setHSL(hue, 1, 0.7);
+          colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+          particleMaterial.size = 0.1;
+          particleMaterial.opacity = 0.8;
+        }
+      }
+      particleGeometry.attributes.position.needsUpdate = true;
+      particleGeometry.attributes.color.needsUpdate = true;
+
+      // Follow unicorn
+      if (unicornContainer) {
+        pippinParticles.position.copy(unicornContainer.position);
+        pippinParticles.position.y += 0.5;
+      }
+    }
+
+    // Create particles after scene loads
+    setTimeout(createPippinParticles, 5000);
+
+    // Inject particle update into the render loop — find existing animate and patch
+    const _origAnimate = animate;
+    // We just add a post-render hook via setInterval since animate is requestAnimationFrame
+    setInterval(() => { updatePippinParticles(currentHappiness); }, 50);
+
+    // Play sound on task complete (patch the reward display)
+    const origTaskReward = taskReward;
+    const _origUpdateHappiness = updateHappiness;
+    const patchedUpdateHappiness = function(val) {
+      _origUpdateHappiness(val);
+      if (val <= 15) playSfx('sad');
+    };
+    // Override updateHappiness
+    updateHappiness = patchedUpdateHappiness;
+
+    // Play complete sfx when task reward appears
+    const taskRewardObserver = new MutationObserver(() => {
+      if (taskReward.textContent.includes('+')) playSfx('complete');
+    });
+    taskRewardObserver.observe(taskReward, { childList: true, characterData: true, subtree: true });
   </script>
 </body>
 </html>

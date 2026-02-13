@@ -33,8 +33,12 @@ CREATE TABLE drawings (
   task_id UUID REFERENCES tasks(id),
   image_data TEXT NOT NULL,          -- base64 data URL from canvas
   prompt TEXT NOT NULL,              -- what Pippin asked them to draw
+  likes INT DEFAULT 0,              -- community likes/hearts
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- If table already exists, add likes column:
+-- ALTER TABLE drawings ADD COLUMN IF NOT EXISTS likes INT DEFAULT 0;
 
 -- Global state: happiness meter, timer, current life
 CREATE TABLE global_state (
