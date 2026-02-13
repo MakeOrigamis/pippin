@@ -2422,10 +2422,9 @@
 
         listEl.innerHTML = data.players.map(p => {
           const isMe = myWallet && p.wallet === myWallet;
-          const shortWallet = p.wallet.slice(0, 6) + '...' + p.wallet.slice(-4);
           return `<div class="rank-row${isMe ? ' me' : ''}">
             <div class="rank-pos">${p.rank <= 3 ? ['🥇','🥈','🥉'][p.rank-1] : '#' + p.rank}</div>
-            <div class="rank-wallet">${shortWallet}</div>
+            <div class="rank-wallet" style="word-break:break-all;font-size:0.6rem">${p.wallet}</div>
             <div class="rank-stats">
               <div class="rank-stat"><div class="rank-stat-val">${p.tasks}</div><div class="rank-stat-label">tasks</div></div>
               <div class="rank-stat"><div class="rank-stat-val">${p.happiness}</div><div class="rank-stat-label">happy</div></div>

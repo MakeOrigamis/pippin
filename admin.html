@@ -28,7 +28,7 @@
   th, td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #3a2a1a; font-size: 0.85rem; }
   th { color: #c4956a; }
   .winner-badge { background: #ffd700; color: #1a1410; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-  .wallet { font-family: monospace; font-size: 0.8rem; }
+  .wallet { font-family: monospace; font-size: 0.7rem; word-break: break-all; }
   .status-msg { padding: 0.5rem; margin: 0.5rem 0; border-radius: 6px; }
   .status-ok { background: #1b5e20; color: #a5d6a7; }
   .status-err { background: #b71c1c; color: #ef9a9a; }
@@ -130,7 +130,7 @@ async function refresh() {
       pHtml += `<tr>
         <td>${i + 1}</td>
         <td>${p.display_name || 'anon'}</td>
-        <td class="wallet">${p.wallet_address ? p.wallet_address.substring(0, 8) + '...' + p.wallet_address.slice(-4) : '-'}</td>
+        <td class="wallet">${p.wallet_address || '-'}</td>
         <td>${p.tasks_completed || 0}</td>
         <td>${p.total_happiness_contributed || 0}</td>
       </tr>`;
@@ -148,7 +148,7 @@ async function refresh() {
       entries.forEach(e => { walletCounts[e.wallet_address] = (walletCounts[e.wallet_address] || 0) + 1; });
       eHtml += '<table><tr><th>Wallet</th><th>Entries</th></tr>';
       Object.entries(walletCounts).sort((a, b) => b[1] - a[1]).forEach(([w, c]) => {
-        eHtml += `<tr><td class="wallet">${w.substring(0, 8)}...${w.slice(-4)}</td><td>${c}</td></tr>`;
+        eHtml += `<tr><td class="wallet">${w}</td><td>${c}</td></tr>`;
       });
       eHtml += '</table>';
     });
