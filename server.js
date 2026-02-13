@@ -818,11 +818,29 @@ ONLY output the JSON. No markdown, no code blocks.`;
     try {
       const { data } = await supabase
         .from('drawings')
-        .select('id, prompt, created_at, participant_id')
+        .select('id, prompt, image_data, created_at, participant_id')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
+
+      // Enrich with artist names
+      const enriched = await Promise.all((data || []).map(async (d) => {
+        const { data: p } = await supabase
+          .from('participants')
+          .select('display_name, wallet_address')
+          .eq('id', d.participant_id)
+          .single();
+        return {
+          id: d.id,
+          prompt: d.prompt,
+          image_data: d.image_data,
+          created_at: d.created_at,
+          artist: p?.display_name || 'anonymous',
+          wallet: p?.wallet_address ? p.wallet_address.substring(0, 6) + '...' : '',
+        };
+      }));
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data || []));
+      res.end(JSON.stringify(enriched));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
