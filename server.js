@@ -407,7 +407,7 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
         // Find participant
         const { data: participant } = await supabase
           .from('participants')
-          .select('id')
+          .select('id, tasks_completed, total_happiness_contributed')
           .eq('wallet_address', wallet)
           .single();
 
@@ -463,8 +463,8 @@ ONLY output the JSON. No markdown, no code blocks, no extra text.`;
         await supabase
           .from('participants')
           .update({
-            tasks_completed: participant.tasks_completed + 1,
-            total_happiness_contributed: participant.total_happiness_contributed + happinessReward,
+            tasks_completed: (participant.tasks_completed || 0) + 1,
+            total_happiness_contributed: (participant.total_happiness_contributed || 0) + happinessReward,
           })
           .eq('id', participant.id);
 
@@ -945,29 +945,49 @@ ONLY output the JSON. No markdown, no code blocks.`;
     try {
       const { data: players } = await supabase
         .from('participants')
-        .select('wallet_address, display_name, tasks_completed, total_happiness_contributed, created_at')
-        .order('total_happiness_contributed', { ascending: false })
+        .select('id, wallet_address, display_name, tasks_completed, total_happiness_contributed, created_at')
+        .order('created_at', { ascending: true })
         .limit(50);
 
       // Count raffle entries per player for current life
       const { data: state } = await supabase.from('global_state').select('current_life').eq('id', 1).single();
       const lifeNum = state?.current_life || 1;
 
-      const enriched = await Promise.all((players || []).map(async (p, i) => {
-        const { count } = await supabase
+      const enriched = await Promise.all((players || []).map(async (p) => {
+        // Count actual completed tasks from tasks table (reliable source)
+        const { count: taskCount } = await supabase
+          .from('tasks')
+          .select('*', { count: 'exact', head: true })
+          .eq('participant_id', p.id)
+          .eq('completed', true);
+
+        // Count actual happiness from tasks table
+        const { data: taskData } = await supabase
+          .from('tasks')
+          .select('happiness_reward')
+          .eq('participant_id', p.id)
+          .eq('completed', true);
+        const totalHappiness = (taskData || []).reduce((sum, t) => sum + (t.happiness_reward || 0), 0);
+
+        // Count raffle entries for current life
+        const { count: entryCount } = await supabase
           .from('raffle_entries')
           .select('*', { count: 'exact', head: true })
           .eq('wallet_address', p.wallet_address)
           .eq('life_number', lifeNum);
+
         return {
-          rank: i + 1,
           wallet: p.wallet_address,
           name: p.display_name || 'explorer',
-          tasks: p.tasks_completed || 0,
-          happiness: p.total_happiness_contributed || 0,
-          entries: count || 0,
+          tasks: taskCount || 0,
+          happiness: totalHappiness || 0,
+          entries: entryCount || 0,
         };
       }));
+
+      // Sort by happiness contributed (descending), then by tasks
+      enriched.sort((a, b) => b.happiness - a.happiness || b.tasks - a.tasks);
+      enriched.forEach((p, i) => { p.rank = i + 1; });
 
       const { count: totalPlayers } = await supabase.from('participants').select('*', { count: 'exact', head: true });
 
