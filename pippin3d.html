@@ -1525,7 +1525,8 @@
     let landscapeBox = null;
 
     loadingStatus.textContent = 'loading river landscape...';
-    gltfLoader.load('models/lysergic_river.glb', (gltf) => {
+    const RIVER_URL = 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/models/lysergic_river.glb';
+    gltfLoader.load(RIVER_URL, (gltf) => {
       riverScene = gltf.scene;
 
       const box = new THREE.Box3().setFromObject(riverScene);
@@ -1886,7 +1887,8 @@
 
     // Unicorn loading function - called after river loads
     function loadUnicorn(sceneCenter, sceneBBox, bathtub, candidates) {
-      gltfLoader.load('models/kawaii_unicorn_rigged.glb', (gltf) => {
+      const UNICORN_URL = 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/models/kawaii_unicorn_rigged.glb';
+      gltfLoader.load(UNICORN_URL, (gltf) => {
         unicornModel = gltf.scene;
 
         // Measure the unicorn at original scale
@@ -2004,12 +2006,12 @@
 
     // ======================== FBX ANIMATION LOADING ========================
     const animFiles = {
-      idle: 'animations/idle.fbx',
-      walking: 'animations/walking.fbx',
-      jump: 'animations/jump.fbx',
-      samba: 'animations/samba dancing.fbx',
-      gangnam: 'animations/Gangnam Style.fbx',
-      backflip: 'animations/back flip to uppercut.fbx',
+      idle: 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/animations/idle.fbx',
+      walking: 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/animations/walking.fbx',
+      jump: 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/animations/jump.fbx',
+      samba: 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/animations/samba_dancing.fbx',
+      gangnam: 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/animations/Gangnam_Style.fbx',
+      backflip: 'https://wgpnbnvlbnilfxqcexht.supabase.co/storage/v1/object/public/assets/animations/back_flip_to_uppercut.fbx',
     };
 
     let loadedAnims = 0;
