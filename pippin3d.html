@@ -3898,10 +3898,7 @@
         if (keysHeld['ArrowLeft'] || keysHeld['a'] || keysHeld['A'])  moveX -= SPEED;
         if (keysHeld['ArrowRight'] || keysHeld['d'] || keysHeld['D']) moveX += SPEED;
         if (keysHeld[' '] || flyUpHeld)      moveY += FLY_SPEED;  // Space / fly up btn
-        // Shift/fly-down only works if above ground level (can't sink below landscape)
-        if ((keysHeld['Shift'] || flyDownHeld) && unicornGroundY !== null && unicornContainer.position.y > unicornGroundY + 0.1) {
-          moveY -= FLY_SPEED;
-        }
+        if (keysHeld['Shift'] || flyDownHeld) moveY -= FLY_SPEED;  // Shift / fly down btn
 
         // Mobile joystick input
         if (Math.abs(joystickX) > 0.1 || Math.abs(joystickY) > 0.1) {
