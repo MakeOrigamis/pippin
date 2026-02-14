@@ -3,6 +3,9 @@
 An interactive 3D experience featuring Pippin, a kawaii AI unicorn in a magical dimension. Built on the [Pippin Framework](https://pippin.love) for autonomous AI agents.
 
 **Live:** [pippingroundhog.com](https://pippingroundhog.com)
+**Ticker:** $PORLD
+**CA (Solana):** `GdEAjEov4jF1v1tq4cnBJWsK4rbr8ZFs8GojWQmvpump`
+**Community:** [X Community](https://x.com/i/communities/2022496056731369614)
 
 ---
 
